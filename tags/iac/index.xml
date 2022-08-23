@@ -1,0 +1,165 @@
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Leo Kuan – IaC</title>
+    <link>/tags/iac/</link>
+    <description>Recent content in IaC on Leo Kuan</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <lastBuildDate>Wed, 30 Mar 2022 21:29:50 -1000</lastBuildDate>
+    
+	  <atom:link href="/tags/iac/index.xml" rel="self" type="application/rss+xml" />
+    
+    
+      
+        
+      
+    
+    
+    <item>
+      <title>IaC: Provision a 3-Node K8S Cluster in Proxmox Using Terraform and Ansible</title>
+      <link>/iac/provision-k8s-cluster/</link>
+      <pubDate>Fri, 18 Mar 2022 05:53:43 -1000</pubDate>
+      
+      <guid>/iac/provision-k8s-cluster/</guid>
+      <description>
+        
+        
+        
+
+&lt;div class=&#34;alert alert-primary&#34; role=&#34;alert&#34;&gt;
+&lt;h4 class=&#34;alert-heading&#34;&gt;Code&lt;/h4&gt;
+
+    The repo for this project can be found &lt;a href=&#34;https://github.com/leokuan2021/proxmox-k8s-cluster.git&#34;&gt;here&lt;/a&gt;.
+
+&lt;/div&gt;
+
+&lt;p&gt;While I was studying for my CKA certificate, naturally I needed my own Kubernetes cluster to practice on and experiment with. Setting one up with VMs in the cloud was one option but I just so happened to have a NUC that I could repurpose as a testbed, which made the decision easy.&lt;/p&gt;
+&lt;p&gt;I also needed to learn and practice Terraform and Ansible, so what better way to do all that than spinning up a 3-node Kubernetes cluster with some code? It goes without saying that this is not production grade at all but I believe it&amp;rsquo;s good enough for experimenting at home.&lt;/p&gt;
+&lt;p&gt;This project assumes Terraform and Ansible have been installed on the workstation from where the Terraform script and Ansible playbook will be run. It also assumes Proxmox has been installed on the target host and an API token has been created which can be used by the workstation to authenticate and communicate with Proxmox.&lt;/p&gt;
+&lt;p&gt;Terraform is used at the beginning to provision the VMs, then Ansible takes over and continues with the system configuration and package installation for each of the nodes. It utilizes the kubeadm way to install Kubernetes. Calico, Helm, Kompose, Longhorn and MetalLB are also installed, among other things.&lt;/p&gt;
+&lt;p&gt;The end result is a 3-node Kubernetes VM cluster with the following parameters:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Master Node: VMID = 140, hostname = k8s-master, IP = 192.168.1.140&lt;/li&gt;
+&lt;li&gt;Worker Node 1: VMID = 146, hostname = k8s-worker1, IP = 192.168.1.146&lt;/li&gt;
+&lt;li&gt;Worker Node 2: VMID = 147, hostname = k8s-worker2, IP = 192.168.1.147&lt;/li&gt;
+&lt;li&gt;Kubernetes control plane end point = 192.168.1.140:6443&lt;/li&gt;
+&lt;li&gt;Pod network CIDR = 192.168.152.0/23&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Note that the user &lt;code&gt;devops&lt;/code&gt; is created for each one of the 3 nodes and the default SSH key location and filename is used (&lt;code&gt;~/.ssh/id_rsa&lt;/code&gt;).&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id=&#34;proxmox-and-cloud-init&#34;&gt;Proxmox and Cloud-init&lt;/h2&gt;
+&lt;p&gt;For hypervisor I went with Proxmox since I already had a little experience with it in the past. Installing Proxmox and building VM templates within it are both very straightforward. In order to create a template for VM instances that we can initialize using Terraform, we are going to utilize &lt;a href=&#34;https://pve.proxmox.com/wiki/Cloud-Init_Support&#34;&gt;Cloud-init&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;Cloud-init is a system for configuring OS on first boot. It is typically used on cloud-based systems but can also be used for non-cloud-based systems such as Proxmox or VirtualBox to which you can pass your cloud-init data such as instance metadata, network config and commands to be run as a CD-ROM and have the settings applied to your VMs.&lt;/p&gt;
+&lt;p&gt;I ran the following commands on the Proxmox host to create the VM template. Official Proxmox documentation can be found &lt;a href=&#34;https://pve.proxmox.com/pve-docs/chapter-qm.html#_preparing_cloud_init_templates&#34;&gt;here&lt;/a&gt;.&lt;/p&gt;
+&lt;h2 id=&#34;creating-the-vm-template&#34;&gt;Creating the VM Template&lt;/h2&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-console&#34; data-lang=&#34;console&#34;&gt;&lt;span style=&#34;color:#8f5902&#34;&gt;# &lt;/span&gt;download the cloud image 
+&lt;span style=&#34;color:#000;font-style:italic&#34;&gt;cd /var/lib/vz/template/iso/
+&lt;/span&gt;&lt;span style=&#34;color:#000;font-style:italic&#34;&gt;wget https://cloud-images.ubuntu.com/focal/current/focal-server-cloudimg-amd64.img
+&lt;/span&gt;&lt;span style=&#34;color:#000;font-style:italic&#34;&gt;&lt;/span&gt;&lt;span style=&#34;color:#a40000&#34;&gt;
+&lt;/span&gt;&lt;span style=&#34;color:#a40000&#34;&gt;&lt;/span&gt;&lt;span style=&#34;color:#8f5902&#34;&gt;# &lt;/span&gt;install libguestfs-tools to directly install qemu-guest-agent into the iso
+&lt;span style=&#34;color:#000;font-style:italic&#34;&gt;apt-get install libguestfs-tools
+&lt;/span&gt;&lt;span style=&#34;color:#000;font-style:italic&#34;&gt;&lt;/span&gt;&lt;span style=&#34;color:#a40000&#34;&gt;
+&lt;/span&gt;&lt;span style=&#34;color:#a40000&#34;&gt;&lt;/span&gt;&lt;span style=&#34;color:#8f5902&#34;&gt;# &lt;/span&gt;install qemu-guest-agent
+&lt;span style=&#34;color:#000;font-style:italic&#34;&gt;virt-customize -a focal-server-cloudimg-amd64.img --install qemu-guest-agent
+&lt;/span&gt;&lt;span style=&#34;color:#000;font-style:italic&#34;&gt;&lt;/span&gt;&lt;span style=&#34;color:#a40000&#34;&gt;
+&lt;/span&gt;&lt;span style=&#34;color:#a40000&#34;&gt;&lt;/span&gt;&lt;span style=&#34;color:#8f5902&#34;&gt;# &lt;/span&gt;create a new VM  
+&lt;span style=&#34;color:#000;font-style:italic&#34;&gt;qm create 1000 --name &amp;#34;ubuntu-2004-cloudinit-template&amp;#34; --memory 4096 --cores 2 --net0 virtio,bridge=vmbr0
+&lt;/span&gt;&lt;span style=&#34;color:#000;font-style:italic&#34;&gt;&lt;/span&gt;&lt;span style=&#34;color:#a40000&#34;&gt;
+&lt;/span&gt;&lt;span style=&#34;color:#a40000&#34;&gt;&lt;/span&gt;&lt;span style=&#34;color:#8f5902&#34;&gt;# &lt;/span&gt;import the downloaded disk to local-lvm storage
+&lt;span style=&#34;color:#000;font-style:italic&#34;&gt;qm importdisk 1000 focal-server-cloudimg-amd64.img local-lvm
+&lt;/span&gt;&lt;span style=&#34;color:#000;font-style:italic&#34;&gt;&lt;/span&gt;&lt;span style=&#34;color:#a40000&#34;&gt;
+&lt;/span&gt;&lt;span style=&#34;color:#a40000&#34;&gt;&lt;/span&gt;&lt;span style=&#34;color:#8f5902&#34;&gt;# &lt;/span&gt;finally attach the new disk to the VM as scsi drive
+&lt;span style=&#34;color:#000;font-style:italic&#34;&gt;qm set 1000 --scsihw virtio-scsi-pci --scsi0 local-lvm:vm-1000-disk-0
+&lt;/span&gt;&lt;span style=&#34;color:#000;font-style:italic&#34;&gt;&lt;/span&gt;&lt;span style=&#34;color:#a40000&#34;&gt;
+&lt;/span&gt;&lt;span style=&#34;color:#a40000&#34;&gt;&lt;/span&gt;&lt;span style=&#34;color:#8f5902&#34;&gt;# &lt;/span&gt;configure a CD-ROM drive, which will be used to pass the Cloud-Init data to the VM
+&lt;span style=&#34;color:#000;font-style:italic&#34;&gt;qm set 1000 --ide2 local-lvm:cloudinit
+&lt;/span&gt;&lt;span style=&#34;color:#000;font-style:italic&#34;&gt;&lt;/span&gt;&lt;span style=&#34;color:#a40000&#34;&gt;
+&lt;/span&gt;&lt;span style=&#34;color:#a40000&#34;&gt;&lt;/span&gt;&lt;span style=&#34;color:#8f5902&#34;&gt;# &lt;/span&gt;to be able to boot directly from the Cloud-Init image, &lt;span style=&#34;color:#204a87&#34;&gt;set&lt;/span&gt; the bootdisk parameter to scsi0
+&lt;span style=&#34;color:#000;font-style:italic&#34;&gt;qm set 1000 --boot c --bootdisk scsi0
+&lt;/span&gt;&lt;span style=&#34;color:#000;font-style:italic&#34;&gt;&lt;/span&gt;&lt;span style=&#34;color:#a40000&#34;&gt;
+&lt;/span&gt;&lt;span style=&#34;color:#a40000&#34;&gt;&lt;/span&gt;&lt;span style=&#34;color:#8f5902&#34;&gt;# &lt;/span&gt;configure a serial console and use it as a display
+&lt;span style=&#34;color:#000;font-style:italic&#34;&gt;qm set 1000 --serial0 socket --vga serial0
+&lt;/span&gt;&lt;span style=&#34;color:#000;font-style:italic&#34;&gt;&lt;/span&gt;&lt;span style=&#34;color:#a40000&#34;&gt;
+&lt;/span&gt;&lt;span style=&#34;color:#a40000&#34;&gt;&lt;/span&gt;&lt;span style=&#34;color:#8f5902&#34;&gt;# &lt;/span&gt;&lt;span style=&#34;color:#204a87&#34;&gt;enable&lt;/span&gt; the agent
+&lt;span style=&#34;color:#000;font-style:italic&#34;&gt;qm set 1000 --agent 1
+&lt;/span&gt;&lt;span style=&#34;color:#000;font-style:italic&#34;&gt;&lt;/span&gt;&lt;span style=&#34;color:#a40000&#34;&gt;
+&lt;/span&gt;&lt;span style=&#34;color:#a40000&#34;&gt;&lt;/span&gt;&lt;span style=&#34;color:#8f5902&#34;&gt;# &lt;/span&gt;convert the VM into a template
+&lt;span style=&#34;color:#000;font-style:italic&#34;&gt;qm template 1000
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;hr&gt;
+&lt;h2 id=&#34;create-role-and-user-set-privileges-and-generate-api-token&#34;&gt;Create role and user, set privileges and generate API token&lt;/h2&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-console&#34; data-lang=&#34;console&#34;&gt;&lt;span style=&#34;color:#000;font-style:italic&#34;&gt;pveum role add terraform-role -privs &amp;#34;VM.Allocate VM.Clone VM.Config.CDROM VM.Config.CPU VM.Config.Cloudinit VM.Config.Disk VM.Config.HWType VM.Config.Memory VM.Config.Network VM.Config.Options VM.Monitor VM.Audit VM.PowerMgmt Datastore.AllocateSpace Datastore.Audit&amp;#34;
+&lt;/span&gt;&lt;span style=&#34;color:#000;font-style:italic&#34;&gt;pveum user add terraform@pve
+&lt;/span&gt;&lt;span style=&#34;color:#000;font-style:italic&#34;&gt;pveum aclmod / -user terraform@pve -role terraform-role
+&lt;/span&gt;&lt;span style=&#34;color:#000;font-style:italic&#34;&gt;pveum user token add terraform@pve terraform-token --privsep=0
+&lt;/span&gt;&lt;span style=&#34;color:#000;font-style:italic&#34;&gt;&lt;/span&gt;&lt;span style=&#34;color:#a40000&#34;&gt;
+&lt;/span&gt;&lt;span style=&#34;color:#a40000&#34;&gt;&lt;/span&gt;&lt;span style=&#34;color:#8f5902&#34;&gt;# &lt;/span&gt;output:
+&lt;span style=&#34;color:#000;font-style:italic&#34;&gt;root@host1:/var/lib/vz/template/iso# pveum user token add terraform@pve terraform-token --privsep=0
+&lt;/span&gt;&lt;span style=&#34;color:#000;font-style:italic&#34;&gt;┌──────────────┬──────────────────────────────────────┐
+&lt;/span&gt;&lt;span style=&#34;color:#000;font-style:italic&#34;&gt;│ key          │ value                                │
+&lt;/span&gt;&lt;span style=&#34;color:#000;font-style:italic&#34;&gt;╞══════════════╪══════════════════════════════════════╡
+&lt;/span&gt;&lt;span style=&#34;color:#000;font-style:italic&#34;&gt;│ full-tokenid │ terraform@pve!terraform-token        │
+&lt;/span&gt;&lt;span style=&#34;color:#000;font-style:italic&#34;&gt;├──────────────┼──────────────────────────────────────┤
+&lt;/span&gt;&lt;span style=&#34;color:#000;font-style:italic&#34;&gt;│ info         │ {&amp;#34;privsep&amp;#34;:&amp;#34;0&amp;#34;}                      │
+&lt;/span&gt;&lt;span style=&#34;color:#000;font-style:italic&#34;&gt;├──────────────┼──────────────────────────────────────┤
+&lt;/span&gt;&lt;span style=&#34;color:#000;font-style:italic&#34;&gt;│ value        │ 87b3a427-5ebd-4451-b5c2-d19ef2008de4 │
+&lt;/span&gt;&lt;span style=&#34;color:#000;font-style:italic&#34;&gt;└──────────────┴──────────────────────────────────────┘
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;Then on our workstation, we export the following to pass the API token when the TF script is run:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-console&#34; data-lang=&#34;console&#34;&gt;&lt;span style=&#34;color:#8f5902&#34;&gt;# &lt;/span&gt;Export the following variables which our Terraform script will use to authenticate when it communicates with our Proxmox server
+&lt;span style=&#34;color:#000;font-style:italic&#34;&gt;export PM_API_TOKEN_ID=&amp;#34;terraform@pve!terraform-token&amp;#34;
+&lt;/span&gt;&lt;span style=&#34;color:#000;font-style:italic&#34;&gt;export PM_API_TOKEN_SECRET=&amp;#34;87b3a427-5ebd-4451-b5c2-d19ef2008de4&amp;#34;
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;hr&gt;
+&lt;h2 id=&#34;running-the-terraform-script&#34;&gt;Running the Terraform Script&lt;/h2&gt;
+&lt;p&gt;From the project root directory, do the following:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-console&#34; data-lang=&#34;console&#34;&gt;&lt;span style=&#34;color:#000;font-style:italic&#34;&gt;terraform init
+&lt;/span&gt;&lt;span style=&#34;color:#000;font-style:italic&#34;&gt;terraform apply
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;If all goes well, in a few minutes the cluster will be up and running, ready for you to practice your K8s chops on.&lt;/p&gt;
+
+      </description>
+    </item>
+    
+    <item>
+      <title>IaC: Infrastructure as Code</title>
+      <link>/iac/</link>
+      <pubDate>Thu, 05 Jan 2017 00:00:00 +0000</pubDate>
+      
+      <guid>/iac/</guid>
+      <description>
+        
+        
+        
+
+&lt;div class=&#34;pageinfo pageinfo-primary&#34;&gt;
+&lt;p&gt;This is where I file IaC related things; hoping to add some AWS things here when I can find some free time.&lt;/p&gt;
+
+&lt;/div&gt;
+
+
+      </description>
+    </item>
+    
+    <item>
+      <title>IaC: Production Grade IaC Examples</title>
+      <link>/iac/production-grade-iac/</link>
+      <pubDate>Wed, 30 Mar 2022 21:29:50 -1000</pubDate>
+      
+      <guid>/iac/production-grade-iac/</guid>
+      <description>
+        
+        
+        &lt;p&gt;Here&amp;rsquo;s a collection of repos of production IaC:&lt;/p&gt;
+&lt;p&gt;&lt;a href=&#34;https://gitlab.archlinux.org/archlinux/infrastructure&#34;&gt;Official Arch Linux Infrastructure Repository&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;&lt;a href=&#34;https://github.com/alphagov/govuk-infrastructure&#34;&gt;Infrastructure as code for GOV.UK&lt;/a&gt;
+&lt;a href=&#34;https://github.com/alphagov/govuk-aws&#34;&gt;GOV.UK AWS&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;&lt;a href=&#34;https://gitlab.com/gitlab-com/gl-infra/terraform-modules&#34;&gt;Gitlab&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;&lt;a href=&#34;https://github.com/dod-iac&#34;&gt;DoD IaC&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;&lt;a href=&#34;https://github.com/orgs/cds-snc/repositories?language=hcl&amp;amp;type=all&#34;&gt;Canadian Digital Service&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;&lt;a href=&#34;https://github.com/cogini/multi-env-deploy&#34;&gt;https://github.com/cogini/multi-env-deploy&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;&lt;a href=&#34;https://github.com/teradici/cloud_deployment_scripts&#34;&gt;https://github.com/teradici/cloud_deployment_scripts&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;&lt;a href=&#34;https://github.com/divviup/prio-server&#34;&gt;https://github.com/divviup/prio-server&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;&lt;a href=&#34;https://github.com/mozilla/partinfra-terraform&#34;&gt;https://github.com/mozilla/partinfra-terraform&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;&lt;a href=&#34;https://github.com/cloudposse/&#34;&gt;https://github.com/cloudposse/&lt;/a&gt;&lt;/p&gt;
+
+      </description>
+    </item>
+    
+  </channel>
+</rss>

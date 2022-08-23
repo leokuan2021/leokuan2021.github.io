@@ -1,0 +1,65 @@
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Leo Kuan – Linux</title>
+    <link>/tags/linux/</link>
+    <description>Recent content in Linux on Leo Kuan</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <lastBuildDate>Mon, 02 May 2022 15:40:58 -1000</lastBuildDate>
+    
+	  <atom:link href="/tags/linux/index.xml" rel="self" type="application/rss+xml" />
+    
+    
+      
+        
+      
+    
+    
+    <item>
+      <title>Miscellaneous: Running a CUPS Print Server on Synology NAS for My Old USB HP P1006 Laser Printer Using Docker</title>
+      <link>/miscellaneous/hp-p1006-docker/</link>
+      <pubDate>Mon, 02 May 2022 15:40:58 -1000</pubDate>
+      
+      <guid>/miscellaneous/hp-p1006-docker/</guid>
+      <description>
+        
+        
+        &lt;hr&gt;
+
+
+&lt;div class=&#34;alert alert-primary&#34; role=&#34;alert&#34;&gt;
+&lt;h4 class=&#34;alert-heading&#34;&gt;Code&lt;/h4&gt;
+
+    The repo for this project can be found &lt;a href=&#34;https://github.com/leokuan2021/p1006-on-syno&#34;&gt;here&lt;/a&gt;.
+
+&lt;/div&gt;
+
+&lt;p&gt;&lt;img src=&#34;/static/img/HP-P1006-Docker/HP-P1006-Docker_2022-05-03-23-46-51.png&#34; alt=&#34;&#34;&gt;&lt;/p&gt;
+&lt;p&gt;So I have this old USB only printer at home that I use every once in a blue moon. I used to have a Raspberry Pi hooked up to it that served as a print server and the same Pi had OctoPrint running on it for my 3d printer as well. But the Pi&amp;rsquo;s WiFi was on the verge of failing and would frequently drop its network connection so I figured I&amp;rsquo;d connect the printer to my Synology NAS and let it manage my laser printer instead. Sounds simple enough right?&lt;/p&gt;
+&lt;p&gt;It would&amp;rsquo;ve been awesome if it was plug-and-play but of course these things are never as straightforward as they should be. As it turns out, the Synology NAS only supports a select few printers out of the box and the only way that I can think of to get my printer to work with it is to pretty much duplicate the CUPS setup I had with the Raspberry Pi but with a docker container (and for x86 arch instead of ARM, of course).&lt;/p&gt;
+&lt;p&gt;The same thing has been done for a &lt;a href=&#34;http://www.theghostbit.com/2016/10/setting-up-cups-server-with-docker-on.html&#34;&gt;different printer&lt;/a&gt;, and an older version of the DSM. As of this writing, I am running DSM 7.0.1. So parts of that guide don&amp;rsquo;t really apply anymore.&lt;/p&gt;
+&lt;h2 id=&#34;dockerfile&#34;&gt;Dockerfile&lt;/h2&gt;
+&lt;p&gt;Writing the dockerfile itself was very straightforward. I started with Debian Jessie as the base, and installed some basic utilities and build-essentials to build the driver from source. The P1006 is one of those annoying printers that require a firmware to be loaded on power up and that&amp;rsquo;s the reason installing the god damned driver is so much more complicated than it needs to be. Details on the installation steps for the foo2zjs driver can be found &lt;a href=&#34;https://github.com/koenkooi/foo2zjs&#34;&gt;here&lt;/a&gt;. The steps can vary depending on the distro it&amp;rsquo;s to be installed on. Again, much more complicated than it needs to be.
+Finally Add the user, set a password, run the CUPS daemon, easy peasy.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-console&#34; data-lang=&#34;console&#34;&gt;&lt;span style=&#34;color:#000;font-style:italic&#34;&gt;docker build . -t leokuan/p1006cups
+&lt;/span&gt;&lt;span style=&#34;color:#000;font-style:italic&#34;&gt;docker push leokuan/p1006cups
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;Synology DSM runs cupsd under the hood for its print service. To run the docker image, first check to see if cupsd is running, if so, use synosystemctl stop cupsd to terminate it (synoservice is deprecated). Don&amp;rsquo;t try to kill the process by ID as it will just respawn.
+You could also write a start-up script to automate the process. But I only needed to print a few pages at home so there wasn&amp;rsquo;t much of a reason to bother.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-console&#34; data-lang=&#34;console&#34;&gt;&lt;span style=&#34;color:#000;font-style:italic&#34;&gt;sudo netstat -pna | grep 631
+&lt;/span&gt;&lt;span style=&#34;color:#000;font-style:italic&#34;&gt;sudo synosystemctl stop cupsd
+&lt;/span&gt;&lt;span style=&#34;color:#000;font-style:italic&#34;&gt;sudo docker run -d -p 631:631 -p 5353:5353 --privileged -t -i --name p1006cups --device=/dev/bus/usb/001/001 leokuan/p1006cups:latest
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;Of particular note, DSM now comes with &lt;code&gt;lsusb&lt;/code&gt;, but it&amp;rsquo;s a strange Python implementation of &lt;code&gt;lsusb&lt;/code&gt; that doesn&amp;rsquo;t really tell you the device numbers of your connected devices.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-console&#34; data-lang=&#34;console&#34;&gt;&lt;span style=&#34;color:#8f5902&#34;&gt;$ &lt;/span&gt;lsusb
+&lt;span style=&#34;color:#000;font-style:italic&#34;&gt;|__usb1          1d6b:0002:0404 09  2.00  480MBit/s 0mA 1IF  (Linux 4.4.180+ xhci-hcd xHCI Host Controller 0000:00:15.0) hub
+&lt;/span&gt;&lt;span style=&#34;color:#000;font-style:italic&#34;&gt;  |__1-2         03f0:3e17:0100 00  2.00  480MBit/s 98mA 1IF  (Hewlett-Packard HP LaserJet P1006 AC2DFF6)
+&lt;/span&gt;&lt;span style=&#34;color:#000;font-style:italic&#34;&gt;  |__1-4         f400:f400:0100 00  2.00  480MBit/s 200mA 1IF  (Synology DiskStation 7F00147B9D345A50)
+&lt;/span&gt;&lt;span style=&#34;color:#000;font-style:italic&#34;&gt;|__usb2          1d6b:0003:0404 09  3.00 5000MBit/s 0mA 1IF  (Linux 4.4.180+ xhci-hcd xHCI Host Controller 0000:00:15.0) hub
+&lt;/span&gt;&lt;span style=&#34;color:#000;font-style:italic&#34;&gt;  |__2-1         0bc2:ab34:0100 00  3.00 5000MBit/s 0mA 1IF  (Seagate Backup+  Desk NA7H3L4F)
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;Anyhow, I was able to pass the printer as &lt;code&gt;device=/dev/bus/usb/001/001&lt;/code&gt; to the container and that did the trick.&lt;/p&gt;
+&lt;p&gt;The rest is no different than setting up CUPS normally.&lt;/p&gt;
+&lt;p&gt;If you have more than a couple containers running on your NAS like I do, I recommend using portainer to manage them.&lt;/p&gt;
+
+      </description>
+    </item>
+    
+  </channel>
+</rss>

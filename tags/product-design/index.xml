@@ -1,0 +1,46 @@
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Leo Kuan – Product Design</title>
+    <link>/tags/product-design/</link>
+    <description>Recent content in Product Design on Leo Kuan</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <lastBuildDate>Fri, 18 Mar 2022 05:53:43 -1000</lastBuildDate>
+    
+	  <atom:link href="/tags/product-design/index.xml" rel="self" type="application/rss+xml" />
+    
+    
+      
+        
+      
+    
+    
+    <item>
+      <title>Miscellaneous: Onigoe Clone - A Reaction Trainer for Sports Using a Microcontroller</title>
+      <link>/miscellaneous/onigoe-clone/</link>
+      <pubDate>Fri, 18 Mar 2022 05:53:43 -1000</pubDate>
+      
+      <guid>/miscellaneous/onigoe-clone/</guid>
+      <description>
+        
+        
+        
+
+&lt;div class=&#34;alert alert-primary&#34; role=&#34;alert&#34;&gt;
+&lt;h4 class=&#34;alert-heading&#34;&gt;Code&lt;/h4&gt;
+
+    The repo for this project can be found &lt;a href=&#34;https://github.com/leokuan2021/OnigoeClone.git&#34;&gt;here&lt;/a&gt;.
+
+&lt;/div&gt;
+
+
+&lt;div style=&#34;position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden;&#34;&gt;
+  &lt;iframe src=&#34;https://www.youtube.com/embed/KYbpUSYd9rY&#34; style=&#34;position: absolute; top: 0; left: 0; width: 100%; height: 100%; border:0;&#34; allowfullscreen title=&#34;YouTube Video&#34;&gt;&lt;/iframe&gt;
+&lt;/div&gt;
+
+&lt;p&gt;I built this reaction trainer using an Arduino nano, a cheapo ebay monochrome OLED display and some bigass buttons. My wife saw professional badminton players train with it in Thailand and wanted one for her badminton club so I built one for her. The enclosure and the button housings were designed by me and 3d-printed with a Makergear printer, some parts were PETG, others TPU for obvious reasons.&lt;/p&gt;
+
+      </description>
+    </item>
+    
+  </channel>
+</rss>

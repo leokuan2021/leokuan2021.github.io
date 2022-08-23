@@ -1,0 +1,43 @@
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Leo Kuan – Learning</title>
+    <link>/tags/learning/</link>
+    <description>Recent content in Learning on Leo Kuan</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <lastBuildDate>Wed, 30 Mar 2022 21:29:50 -1000</lastBuildDate>
+    
+	  <atom:link href="/tags/learning/index.xml" rel="self" type="application/rss+xml" />
+    
+    
+      
+        
+      
+    
+    
+    <item>
+      <title>IaC: Production Grade IaC Examples</title>
+      <link>/iac/production-grade-iac/</link>
+      <pubDate>Wed, 30 Mar 2022 21:29:50 -1000</pubDate>
+      
+      <guid>/iac/production-grade-iac/</guid>
+      <description>
+        
+        
+        &lt;p&gt;Here&amp;rsquo;s a collection of repos of production IaC:&lt;/p&gt;
+&lt;p&gt;&lt;a href=&#34;https://gitlab.archlinux.org/archlinux/infrastructure&#34;&gt;Official Arch Linux Infrastructure Repository&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;&lt;a href=&#34;https://github.com/alphagov/govuk-infrastructure&#34;&gt;Infrastructure as code for GOV.UK&lt;/a&gt;
+&lt;a href=&#34;https://github.com/alphagov/govuk-aws&#34;&gt;GOV.UK AWS&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;&lt;a href=&#34;https://gitlab.com/gitlab-com/gl-infra/terraform-modules&#34;&gt;Gitlab&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;&lt;a href=&#34;https://github.com/dod-iac&#34;&gt;DoD IaC&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;&lt;a href=&#34;https://github.com/orgs/cds-snc/repositories?language=hcl&amp;amp;type=all&#34;&gt;Canadian Digital Service&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;&lt;a href=&#34;https://github.com/cogini/multi-env-deploy&#34;&gt;https://github.com/cogini/multi-env-deploy&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;&lt;a href=&#34;https://github.com/teradici/cloud_deployment_scripts&#34;&gt;https://github.com/teradici/cloud_deployment_scripts&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;&lt;a href=&#34;https://github.com/divviup/prio-server&#34;&gt;https://github.com/divviup/prio-server&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;&lt;a href=&#34;https://github.com/mozilla/partinfra-terraform&#34;&gt;https://github.com/mozilla/partinfra-terraform&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;&lt;a href=&#34;https://github.com/cloudposse/&#34;&gt;https://github.com/cloudposse/&lt;/a&gt;&lt;/p&gt;
+
+      </description>
+    </item>
+    
+  </channel>
+</rss>

@@ -1,0 +1,924 @@
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Leo Kuan – Docker</title>
+    <link>/tags/docker/</link>
+    <description>Recent content in Docker on Leo Kuan</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <lastBuildDate>Mon, 02 May 2022 15:40:58 -1000</lastBuildDate>
+    
+	  <atom:link href="/tags/docker/index.xml" rel="self" type="application/rss+xml" />
+    
+    
+      
+        
+      
+    
+    
+    <item>
+      <title>Miscellaneous: Running a CUPS Print Server on Synology NAS for My Old USB HP P1006 Laser Printer Using Docker</title>
+      <link>/miscellaneous/hp-p1006-docker/</link>
+      <pubDate>Mon, 02 May 2022 15:40:58 -1000</pubDate>
+      
+      <guid>/miscellaneous/hp-p1006-docker/</guid>
+      <description>
+        
+        
+        &lt;hr&gt;
+
+
+&lt;div class=&#34;alert alert-primary&#34; role=&#34;alert&#34;&gt;
+&lt;h4 class=&#34;alert-heading&#34;&gt;Code&lt;/h4&gt;
+
+    The repo for this project can be found &lt;a href=&#34;https://github.com/leokuan2021/p1006-on-syno&#34;&gt;here&lt;/a&gt;.
+
+&lt;/div&gt;
+
+&lt;p&gt;&lt;img src=&#34;/static/img/HP-P1006-Docker/HP-P1006-Docker_2022-05-03-23-46-51.png&#34; alt=&#34;&#34;&gt;&lt;/p&gt;
+&lt;p&gt;So I have this old USB only printer at home that I use every once in a blue moon. I used to have a Raspberry Pi hooked up to it that served as a print server and the same Pi had OctoPrint running on it for my 3d printer as well. But the Pi&amp;rsquo;s WiFi was on the verge of failing and would frequently drop its network connection so I figured I&amp;rsquo;d connect the printer to my Synology NAS and let it manage my laser printer instead. Sounds simple enough right?&lt;/p&gt;
+&lt;p&gt;It would&amp;rsquo;ve been awesome if it was plug-and-play but of course these things are never as straightforward as they should be. As it turns out, the Synology NAS only supports a select few printers out of the box and the only way that I can think of to get my printer to work with it is to pretty much duplicate the CUPS setup I had with the Raspberry Pi but with a docker container (and for x86 arch instead of ARM, of course).&lt;/p&gt;
+&lt;p&gt;The same thing has been done for a &lt;a href=&#34;http://www.theghostbit.com/2016/10/setting-up-cups-server-with-docker-on.html&#34;&gt;different printer&lt;/a&gt;, and an older version of the DSM. As of this writing, I am running DSM 7.0.1. So parts of that guide don&amp;rsquo;t really apply anymore.&lt;/p&gt;
+&lt;h2 id=&#34;dockerfile&#34;&gt;Dockerfile&lt;/h2&gt;
+&lt;p&gt;Writing the dockerfile itself was very straightforward. I started with Debian Jessie as the base, and installed some basic utilities and build-essentials to build the driver from source. The P1006 is one of those annoying printers that require a firmware to be loaded on power up and that&amp;rsquo;s the reason installing the god damned driver is so much more complicated than it needs to be. Details on the installation steps for the foo2zjs driver can be found &lt;a href=&#34;https://github.com/koenkooi/foo2zjs&#34;&gt;here&lt;/a&gt;. The steps can vary depending on the distro it&amp;rsquo;s to be installed on. Again, much more complicated than it needs to be.
+Finally Add the user, set a password, run the CUPS daemon, easy peasy.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-console&#34; data-lang=&#34;console&#34;&gt;&lt;span style=&#34;color:#000;font-style:italic&#34;&gt;docker build . -t leokuan/p1006cups
+&lt;/span&gt;&lt;span style=&#34;color:#000;font-style:italic&#34;&gt;docker push leokuan/p1006cups
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;Synology DSM runs cupsd under the hood for its print service. To run the docker image, first check to see if cupsd is running, if so, use synosystemctl stop cupsd to terminate it (synoservice is deprecated). Don&amp;rsquo;t try to kill the process by ID as it will just respawn.
+You could also write a start-up script to automate the process. But I only needed to print a few pages at home so there wasn&amp;rsquo;t much of a reason to bother.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-console&#34; data-lang=&#34;console&#34;&gt;&lt;span style=&#34;color:#000;font-style:italic&#34;&gt;sudo netstat -pna | grep 631
+&lt;/span&gt;&lt;span style=&#34;color:#000;font-style:italic&#34;&gt;sudo synosystemctl stop cupsd
+&lt;/span&gt;&lt;span style=&#34;color:#000;font-style:italic&#34;&gt;sudo docker run -d -p 631:631 -p 5353:5353 --privileged -t -i --name p1006cups --device=/dev/bus/usb/001/001 leokuan/p1006cups:latest
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;Of particular note, DSM now comes with &lt;code&gt;lsusb&lt;/code&gt;, but it&amp;rsquo;s a strange Python implementation of &lt;code&gt;lsusb&lt;/code&gt; that doesn&amp;rsquo;t really tell you the device numbers of your connected devices.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-console&#34; data-lang=&#34;console&#34;&gt;&lt;span style=&#34;color:#8f5902&#34;&gt;$ &lt;/span&gt;lsusb
+&lt;span style=&#34;color:#000;font-style:italic&#34;&gt;|__usb1          1d6b:0002:0404 09  2.00  480MBit/s 0mA 1IF  (Linux 4.4.180+ xhci-hcd xHCI Host Controller 0000:00:15.0) hub
+&lt;/span&gt;&lt;span style=&#34;color:#000;font-style:italic&#34;&gt;  |__1-2         03f0:3e17:0100 00  2.00  480MBit/s 98mA 1IF  (Hewlett-Packard HP LaserJet P1006 AC2DFF6)
+&lt;/span&gt;&lt;span style=&#34;color:#000;font-style:italic&#34;&gt;  |__1-4         f400:f400:0100 00  2.00  480MBit/s 200mA 1IF  (Synology DiskStation 7F00147B9D345A50)
+&lt;/span&gt;&lt;span style=&#34;color:#000;font-style:italic&#34;&gt;|__usb2          1d6b:0003:0404 09  3.00 5000MBit/s 0mA 1IF  (Linux 4.4.180+ xhci-hcd xHCI Host Controller 0000:00:15.0) hub
+&lt;/span&gt;&lt;span style=&#34;color:#000;font-style:italic&#34;&gt;  |__2-1         0bc2:ab34:0100 00  3.00 5000MBit/s 0mA 1IF  (Seagate Backup+  Desk NA7H3L4F)
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;Anyhow, I was able to pass the printer as &lt;code&gt;device=/dev/bus/usb/001/001&lt;/code&gt; to the container and that did the trick.&lt;/p&gt;
+&lt;p&gt;The rest is no different than setting up CUPS normally.&lt;/p&gt;
+&lt;p&gt;If you have more than a couple containers running on your NAS like I do, I recommend using portainer to manage them.&lt;/p&gt;
+
+      </description>
+    </item>
+    
+    <item>
+      <title>Devops: DevOps Challenge</title>
+      <link>/devops/</link>
+      <pubDate>Thu, 05 Jan 2017 00:00:00 +0000</pubDate>
+      
+      <guid>/devops/</guid>
+      <description>
+        
+        
+        &lt;p&gt;This is a pretty neat Devops Technical Challenge that I think demonstrates my understanding of common Devops tools. I came across &lt;a href=&#34;https://www.reddit.com/r/devops/comments/ou1112/finally_got_a_new_job_some_thoughts_after_months/&#34;&gt;this tech challenge for a devops engineer job&lt;/a&gt; while lurking /r/devops looking for ideas for demo projects. The requirements are laid out in the gist below.
+&lt;script type=&#34;application/javascript&#34; src=&#34;https://gist.github.com/bmcculley/3777fd791cd1081ad05011365ff9087d.js&#34;&gt;&lt;/script&gt;
+&lt;/p&gt;
+
+      </description>
+    </item>
+    
+    <item>
+      <title>Devops: DevOps Challenge Part A</title>
+      <link>/devops/sre-devops-challenge-part-a/</link>
+      <pubDate>Sun, 06 Mar 2022 14:17:00 -1000</pubDate>
+      
+      <guid>/devops/sre-devops-challenge-part-a/</guid>
+      <description>
+        
+        
+        
+
+&lt;div class=&#34;alert alert-info&#34; role=&#34;alert&#34;&gt;
+&lt;h4 class=&#34;alert-heading&#34;&gt;Code:&lt;/h4&gt;
+
+    The repo for this project can be found &lt;a href=&#34;https://github.com/leokuan2021/Devops-Challenge.git&#34;&gt;here&lt;/a&gt;.
+
+&lt;/div&gt;
+
+&lt;h2 id=&#34;creating-and-deploying-k8s-manifests-for-rocketchat&#34;&gt;Creating and deploying k8s manifests for Rocket.chat&lt;/h2&gt;
+&lt;p&gt;We can make use of the official Docker image available for Rocket.chat. The application itself just needs a MongoDB database to get up and running and in the context of Kubernetes, that means creating a StatefulSet, for which we will also configure a volume claim to persist data for the application.
+Applying the rocketchat.yaml file will create a number of resources, namely the namespace, the service for the MongoDB, the statefulset again for the MongoDB, the deployment, as well as the service for the application itself.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-bash&#34; data-lang=&#34;bash&#34;&gt;kubectl apply -f rocketchat.yaml
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;From there, creating a MongoDB replica set is pretty straightforward — the StatefulSet resource allows for consistent identification of pods where each pod gets an ordinal name rather than a random name.&lt;/p&gt;
+&lt;p&gt;With the Service and the StatefulSet for the MongoDB in place, we can go ahead and configure the replicas. Since we set the number of replicas to 2 in our statefulset configuration, our MongoDB pods will be named rocketmongo-0 and rocketmongo-1. Note that the right way or the automatic way to configure the MongoDB replica set is by using a &lt;a href=&#34;https://github.com/cvallance/mongo-k8s-sidecar&#34;&gt;sidecar container&lt;/a&gt;, but since this is a quick and dirty demo I am opting to do it manually.&lt;/p&gt;
+&lt;p&gt;Starting a bash shell inside the mongodb container:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-bash&#34; data-lang=&#34;bash&#34;&gt;kubectl -n rocketchat &lt;span style=&#34;color:#204a87&#34;&gt;exec&lt;/span&gt; rocketmongo-0 rocketmongo -it -- bash
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;Once in, we check the FQDN for the container, which returns the following in our case&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-bash&#34; data-lang=&#34;bash&#34;&gt;root@rocketmongo-0:/# hostname -f
+rocketmongo-0.rocketmongo.rocketchat.svc.cluster.local
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;Similarly, the rocketmongo-1&amp;rsquo;s FQDN is rocketmongo-1.rocketmongo.rocketchat.svc.cluster.local&lt;/p&gt;
+&lt;p&gt;Let&amp;rsquo;s go ahead and configure mongo:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-fallback&#34; data-lang=&#34;fallback&#34;&gt;root@rocketmongo-0:/# mongo
+
+&amp;gt; rs.initiate({ _id: &amp;#34;rs0&amp;#34;, version: 1, members: [  { _id: 0, host: &amp;#34;rocketmongo-0.rocketmongo.rocketchat.svc.cluster.local:27017&amp;#34; },  { _id: 1, host: &amp;#34;rocketmongo-1.rocketmongo.rocketchat.svc.cluster.local:27017&amp;#34; } ]});
+{ &amp;#34;ok&amp;#34; : 1 }
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;To verify:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-fallback&#34; data-lang=&#34;fallback&#34;&gt;rs0:SECONDARY&amp;gt; rs.config()
+{
+	&amp;#34;_id&amp;#34; : &amp;#34;rs0&amp;#34;,
+	&amp;#34;version&amp;#34; : 1,
+	&amp;#34;protocolVersion&amp;#34; : NumberLong(1),
+	&amp;#34;writeConcernMajorityJournalDefault&amp;#34; : true,
+	&amp;#34;members&amp;#34; : [
+		{
+			&amp;#34;_id&amp;#34; : 0,
+			&amp;#34;host&amp;#34; : &amp;#34;rocketmongo-0.rocketmongo.rocketchat.svc.cluster.local:27017&amp;#34;,
+			&amp;#34;arbiterOnly&amp;#34; : false,
+			&amp;#34;buildIndexes&amp;#34; : true,
+			&amp;#34;hidden&amp;#34; : false,
+			&amp;#34;priority&amp;#34; : 1,
+			&amp;#34;tags&amp;#34; : {
+
+			},
+			&amp;#34;slaveDelay&amp;#34; : NumberLong(0),
+			&amp;#34;votes&amp;#34; : 1
+		},
+		{
+			&amp;#34;_id&amp;#34; : 1,
+			&amp;#34;host&amp;#34; : &amp;#34;rocketmongo-1.rocketmongo.rocketchat.svc.cluster.local:27017&amp;#34;,
+			&amp;#34;arbiterOnly&amp;#34; : false,
+			&amp;#34;buildIndexes&amp;#34; : true,
+			&amp;#34;hidden&amp;#34; : false,
+			&amp;#34;priority&amp;#34; : 1,
+			&amp;#34;tags&amp;#34; : {
+
+			},
+			&amp;#34;slaveDelay&amp;#34; : NumberLong(0),
+			&amp;#34;votes&amp;#34; : 1
+		}
+	],
+	&amp;#34;settings&amp;#34; : {
+		&amp;#34;chainingAllowed&amp;#34; : true,
+		&amp;#34;heartbeatIntervalMillis&amp;#34; : 2000,
+		&amp;#34;heartbeatTimeoutSecs&amp;#34; : 10,
+		&amp;#34;electionTimeoutMillis&amp;#34; : 10000,
+		&amp;#34;catchUpTimeoutMillis&amp;#34; : -1,
+		&amp;#34;catchUpTakeoverDelayMillis&amp;#34; : 30000,
+		&amp;#34;getLastErrorModes&amp;#34; : {
+
+		},
+		&amp;#34;getLastErrorDefaults&amp;#34; : {
+			&amp;#34;w&amp;#34; : 1,
+			&amp;#34;wtimeout&amp;#34; : 0
+		},
+		&amp;#34;replicaSetId&amp;#34; : ObjectId(&amp;#34;6281f013443a2f79c81e162b&amp;#34;)
+	}
+}
+rs0:PRIMARY&amp;gt; rs.isMaster()
+{
+	&amp;#34;hosts&amp;#34; : [
+		&amp;#34;rocketmongo-0.rocketmongo.rocketchat.svc.cluster.local:27017&amp;#34;,
+		&amp;#34;rocketmongo-1.rocketmongo.rocketchat.svc.cluster.local:27017&amp;#34;
+	],
+	&amp;#34;setName&amp;#34; : &amp;#34;rs0&amp;#34;,
+	&amp;#34;setVersion&amp;#34; : 1,
+	&amp;#34;ismaster&amp;#34; : true,
+	&amp;#34;secondary&amp;#34; : false,
+	&amp;#34;primary&amp;#34; : &amp;#34;rocketmongo-0.rocketmongo.rocketchat.svc.cluster.local:27017&amp;#34;,
+	&amp;#34;me&amp;#34; : &amp;#34;rocketmongo-0.rocketmongo.rocketchat.svc.cluster.local:27017&amp;#34;,
+	&amp;#34;electionId&amp;#34; : ObjectId(&amp;#34;7fffffff0000000000000001&amp;#34;),
+	&amp;#34;lastWrite&amp;#34; : {
+		&amp;#34;opTime&amp;#34; : {
+			&amp;#34;ts&amp;#34; : Timestamp(1652682800, 150),
+			&amp;#34;t&amp;#34; : NumberLong(1)
+		},
+		&amp;#34;lastWriteDate&amp;#34; : ISODate(&amp;#34;2022-05-16T06:33:20Z&amp;#34;),
+		&amp;#34;majorityOpTime&amp;#34; : {
+			&amp;#34;ts&amp;#34; : Timestamp(1652682800, 83),
+			&amp;#34;t&amp;#34; : NumberLong(1)
+		},
+		&amp;#34;majorityWriteDate&amp;#34; : ISODate(&amp;#34;2022-05-16T06:33:20Z&amp;#34;)
+	},
+	&amp;#34;maxBsonObjectSize&amp;#34; : 16777216,
+	&amp;#34;maxMessageSizeBytes&amp;#34; : 48000000,
+	&amp;#34;maxWriteBatchSize&amp;#34; : 100000,
+	&amp;#34;localTime&amp;#34; : ISODate(&amp;#34;2022-05-16T06:33:20.307Z&amp;#34;),
+	&amp;#34;logicalSessionTimeoutMinutes&amp;#34; : 30,
+	&amp;#34;minWireVersion&amp;#34; : 0,
+	&amp;#34;maxWireVersion&amp;#34; : 7,
+	&amp;#34;readOnly&amp;#34; : false,
+	&amp;#34;ok&amp;#34; : 1,
+	&amp;#34;operationTime&amp;#34; : Timestamp(1652682800, 150),
+	&amp;#34;$clusterTime&amp;#34; : {
+		&amp;#34;clusterTime&amp;#34; : Timestamp(1652682800, 150),
+		&amp;#34;signature&amp;#34; : {
+			&amp;#34;hash&amp;#34; : BinData(0,&amp;#34;AAAAAAAAAAAAAAAAAAAAAAAAAAA=&amp;#34;),
+			&amp;#34;keyId&amp;#34; : NumberLong(0)
+		}
+	}
+}
+rs0:PRIMARY&amp;gt; rs.status()
+{
+	&amp;#34;set&amp;#34; : &amp;#34;rs0&amp;#34;,
+	&amp;#34;date&amp;#34; : ISODate(&amp;#34;2022-05-16T06:33:42.684Z&amp;#34;),
+	&amp;#34;myState&amp;#34; : 1,
+	&amp;#34;term&amp;#34; : NumberLong(1),
+	&amp;#34;syncingTo&amp;#34; : &amp;#34;&amp;#34;,
+	&amp;#34;syncSourceHost&amp;#34; : &amp;#34;&amp;#34;,
+	&amp;#34;syncSourceId&amp;#34; : -1,
+	&amp;#34;heartbeatIntervalMillis&amp;#34; : NumberLong(2000),
+	&amp;#34;optimes&amp;#34; : {
+		&amp;#34;lastCommittedOpTime&amp;#34; : {
+			&amp;#34;ts&amp;#34; : Timestamp(1652682818, 2),
+			&amp;#34;t&amp;#34; : NumberLong(1)
+		},
+		&amp;#34;readConcernMajorityOpTime&amp;#34; : {
+			&amp;#34;ts&amp;#34; : Timestamp(1652682818, 2),
+			&amp;#34;t&amp;#34; : NumberLong(1)
+		},
+		&amp;#34;appliedOpTime&amp;#34; : {
+			&amp;#34;ts&amp;#34; : Timestamp(1652682818, 2),
+			&amp;#34;t&amp;#34; : NumberLong(1)
+		},
+		&amp;#34;durableOpTime&amp;#34; : {
+			&amp;#34;ts&amp;#34; : Timestamp(1652682818, 2),
+			&amp;#34;t&amp;#34; : NumberLong(1)
+		}
+	},
+	&amp;#34;electionCandidateMetrics&amp;#34; : {
+		&amp;#34;lastElectionReason&amp;#34; : &amp;#34;electionTimeout&amp;#34;,
+		&amp;#34;lastElectionDate&amp;#34; : ISODate(&amp;#34;2022-05-16T06:33:01.852Z&amp;#34;),
+		&amp;#34;electionTerm&amp;#34; : NumberLong(1),
+		&amp;#34;lastCommittedOpTimeAtElection&amp;#34; : {
+			&amp;#34;ts&amp;#34; : Timestamp(0, 0),
+			&amp;#34;t&amp;#34; : NumberLong(-1)
+		},
+		&amp;#34;lastSeenOpTimeAtElection&amp;#34; : {
+			&amp;#34;ts&amp;#34; : Timestamp(1652682771, 1),
+			&amp;#34;t&amp;#34; : NumberLong(-1)
+		},
+		&amp;#34;numVotesNeeded&amp;#34; : 2,
+		&amp;#34;priorityAtElection&amp;#34; : 1,
+		&amp;#34;electionTimeoutMillis&amp;#34; : NumberLong(10000),
+		&amp;#34;numCatchUpOps&amp;#34; : NumberLong(0),
+		&amp;#34;newTermStartDate&amp;#34; : ISODate(&amp;#34;2022-05-16T06:33:01.894Z&amp;#34;),
+		&amp;#34;wMajorityWriteAvailabilityDate&amp;#34; : ISODate(&amp;#34;2022-05-16T06:33:03.192Z&amp;#34;)
+	},
+	&amp;#34;members&amp;#34; : [
+		{
+			&amp;#34;_id&amp;#34; : 0,
+			&amp;#34;name&amp;#34; : &amp;#34;rocketmongo-0.rocketmongo.rocketchat.svc.cluster.local:27017&amp;#34;,
+			&amp;#34;health&amp;#34; : 1,
+			&amp;#34;state&amp;#34; : 1,
+			&amp;#34;stateStr&amp;#34; : &amp;#34;PRIMARY&amp;#34;,
+			&amp;#34;uptime&amp;#34; : 266,
+			&amp;#34;optime&amp;#34; : {
+				&amp;#34;ts&amp;#34; : Timestamp(1652682818, 2),
+				&amp;#34;t&amp;#34; : NumberLong(1)
+			},
+			&amp;#34;optimeDate&amp;#34; : ISODate(&amp;#34;2022-05-16T06:33:38Z&amp;#34;),
+			&amp;#34;syncingTo&amp;#34; : &amp;#34;&amp;#34;,
+			&amp;#34;syncSourceHost&amp;#34; : &amp;#34;&amp;#34;,
+			&amp;#34;syncSourceId&amp;#34; : -1,
+			&amp;#34;infoMessage&amp;#34; : &amp;#34;could not find member to sync from&amp;#34;,
+			&amp;#34;electionTime&amp;#34; : Timestamp(1652682781, 1),
+			&amp;#34;electionDate&amp;#34; : ISODate(&amp;#34;2022-05-16T06:33:01Z&amp;#34;),
+			&amp;#34;configVersion&amp;#34; : 1,
+			&amp;#34;self&amp;#34; : true,
+			&amp;#34;lastHeartbeatMessage&amp;#34; : &amp;#34;&amp;#34;
+		},
+		{
+			&amp;#34;_id&amp;#34; : 1,
+			&amp;#34;name&amp;#34; : &amp;#34;rocketmongo-1.rocketmongo.rocketchat.svc.cluster.local:27017&amp;#34;,
+			&amp;#34;health&amp;#34; : 1,
+			&amp;#34;state&amp;#34; : 2,
+			&amp;#34;stateStr&amp;#34; : &amp;#34;SECONDARY&amp;#34;,
+			&amp;#34;uptime&amp;#34; : 50,
+			&amp;#34;optime&amp;#34; : {
+				&amp;#34;ts&amp;#34; : Timestamp(1652682818, 2),
+				&amp;#34;t&amp;#34; : NumberLong(1)
+			},
+			&amp;#34;optimeDurable&amp;#34; : {
+				&amp;#34;ts&amp;#34; : Timestamp(1652682818, 2),
+				&amp;#34;t&amp;#34; : NumberLong(1)
+			},
+			&amp;#34;optimeDate&amp;#34; : ISODate(&amp;#34;2022-05-16T06:33:38Z&amp;#34;),
+			&amp;#34;optimeDurableDate&amp;#34; : ISODate(&amp;#34;2022-05-16T06:33:38Z&amp;#34;),
+			&amp;#34;lastHeartbeat&amp;#34; : ISODate(&amp;#34;2022-05-16T06:33:41.928Z&amp;#34;),
+			&amp;#34;lastHeartbeatRecv&amp;#34; : ISODate(&amp;#34;2022-05-16T06:33:41.109Z&amp;#34;),
+			&amp;#34;pingMs&amp;#34; : NumberLong(0),
+			&amp;#34;lastHeartbeatMessage&amp;#34; : &amp;#34;&amp;#34;,
+			&amp;#34;syncingTo&amp;#34; : &amp;#34;rocketmongo-0.rocketmongo.rocketchat.svc.cluster.local:27017&amp;#34;,
+			&amp;#34;syncSourceHost&amp;#34; : &amp;#34;rocketmongo-0.rocketmongo.rocketchat.svc.cluster.local:27017&amp;#34;,
+			&amp;#34;syncSourceId&amp;#34; : 0,
+			&amp;#34;infoMessage&amp;#34; : &amp;#34;&amp;#34;,
+			&amp;#34;configVersion&amp;#34; : 1
+		}
+	],
+	&amp;#34;ok&amp;#34; : 1,
+	&amp;#34;operationTime&amp;#34; : Timestamp(1652682818, 2),
+	&amp;#34;$clusterTime&amp;#34; : {
+		&amp;#34;clusterTime&amp;#34; : Timestamp(1652682818, 2),
+		&amp;#34;signature&amp;#34; : {
+			&amp;#34;hash&amp;#34; : BinData(0,&amp;#34;AAAAAAAAAAAAAAAAAAAAAAAAAAA=&amp;#34;),
+			&amp;#34;keyId&amp;#34; : NumberLong(0)
+		}
+	}
+}
+
+rs0:PRIMARY&amp;gt; exit
+bye
+root@rocketmongo-0:/# exit
+exit
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;There you go, now that we have MongoDB up and running, let&amp;rsquo;s go ahead and deploy the rocket chat server and its service. Note that we are running MetalLB for load balancer.
+pay attention in your environment variable, and make sure your URI connection is pointed to the replica set, otherwise you will not be able to connect if mongo0 is no longer the PRIMARY and get a MongoError: not master error, in situations such as after a reboot.
+&lt;a href=&#34;https://www.mongodb.com/docs/manual/reference/connection-string/#examples&#34;&gt;https://www.mongodb.com/docs/manual/reference/connection-string/#examples&lt;/a&gt;&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-fallback&#34; data-lang=&#34;fallback&#34;&gt;devops@k8s-master:~/part-a/k8s-manifests$ k -n rocketchat get svc
+NAME                TYPE           CLUSTER-IP       EXTERNAL-IP     PORT(S)          AGE
+rocketchat-server   LoadBalancer   10.100.160.154   192.168.1.220   3000:32598/TCP   7m9s
+rocketmongo         ClusterIP      None             &amp;lt;none&amp;gt;          27017/TCP        7m9
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;we can go ahead and access our rocketchat server&amp;rsquo;s web interface by pointing our browser to the external ip assigned and you will be greeted by the admin setup page. Go ahead and fill out the account information.&lt;/p&gt;
+&lt;p&gt;&lt;img src=&#34;/static/img/SRE-DevOps-Challenge-Part-A/SRE-DevOps-Challenge-Part-A_2022-05-08-21-18-46.png&#34; alt=&#34;&#34;&gt;&lt;/p&gt;
+&lt;p&gt;&lt;img src=&#34;/static/img/SRE-DevOps-Challenge-Part-A/SRE-DevOps-Challenge-Part-A_2022-05-08-21-20-18.png&#34; alt=&#34;&#34;&gt;&lt;/p&gt;
+&lt;p&gt;That&amp;rsquo;s it. That&amp;rsquo;s one way to deploy Rocketchat.&lt;/p&gt;
+&lt;p&gt;go ahead and register a new account and the first account will become the admin account.&lt;/p&gt;
+&lt;h2 id=&#34;creating-and-deploying-k8s-manifests-for-gitlab&#34;&gt;Creating and deploying k8s manifests for GitLab&lt;/h2&gt;
+&lt;p&gt;To install gitlab using manifest is similar to &lt;a href=&#34;https://docs.gitlab.com/ee/install/docker.html&#34;&gt;docker&lt;/a&gt;.
+The main thing to configure here is persistent volumes and the ports for http, https and ssh.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-bash&#34; data-lang=&#34;bash&#34;&gt;kubectl apply -f gitlab.yaml
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;gitlab.yaml&lt;/p&gt;
+&lt;p&gt;Applying the manifest will create the following:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-bash&#34; data-lang=&#34;bash&#34;&gt;kubectl apply -f gitlab.yaml
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-bash&#34; data-lang=&#34;bash&#34;&gt;devops@k8s-master:~/part-a$ k -n gitlab get all
+NAME                          READY   STATUS    RESTARTS   AGE
+pod/gitlab-848789fcd6-ktmct   1/1     Running   &lt;span style=&#34;color:#0000cf;font-weight:bold&#34;&gt;0&lt;/span&gt;          25m
+
+NAME             TYPE           CLUSTER-IP      EXTERNAL-IP     PORT&lt;span style=&#34;color:#ce5c00;font-weight:bold&#34;&gt;(&lt;/span&gt;S&lt;span style=&#34;color:#ce5c00;font-weight:bold&#34;&gt;)&lt;/span&gt;                                   AGE
+service/gitlab   LoadBalancer   10.103.202.16   192.168.1.221   22:30001/TCP,80:30002/TCP,443:30003/TCP   24h
+
+NAME                     READY   UP-TO-DATE   AVAILABLE   AGE
+deployment.apps/gitlab   1/1     &lt;span style=&#34;color:#0000cf;font-weight:bold&#34;&gt;1&lt;/span&gt;            &lt;span style=&#34;color:#0000cf;font-weight:bold&#34;&gt;1&lt;/span&gt;           25m
+
+NAME                                DESIRED   CURRENT   READY   AGE
+replicaset.apps/gitlab-848789fcd6   &lt;span style=&#34;color:#0000cf;font-weight:bold&#34;&gt;1&lt;/span&gt;         &lt;span style=&#34;color:#0000cf;font-weight:bold&#34;&gt;1&lt;/span&gt;         &lt;span style=&#34;color:#0000cf;font-weight:bold&#34;&gt;1&lt;/span&gt;       25m
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;Point your browser to the external-ip and you will be greeted by this page&lt;/p&gt;
+&lt;p&gt;&lt;img src=&#34;/static/img/SRE-DevOps-Challenge-Part-A/SRE-DevOps-Challenge-Part-A_2022-05-09-22-19-12.png&#34; alt=&#34;&#34;&gt;&lt;/p&gt;
+
+
+&lt;div class=&#34;alert alert-info&#34; role=&#34;alert&#34;&gt;
+&lt;h4 class=&#34;alert-heading&#34;&gt;Troubleshooting Tips:&lt;/h4&gt;
+
+    &lt;p&gt;Here are a few commands that may help troubleshoot if you run into problems.&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Here&amp;rsquo;s how one can watch the log as the container starts:&lt;/li&gt;
+&lt;/ul&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-bash&#34; data-lang=&#34;bash&#34;&gt;kubectl -n gitlab logs gitlab-848789fcd6-2h9td --follow
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;ul&gt;
+&lt;li&gt;You can get a shell in the pod by doing the following:&lt;/li&gt;
+&lt;/ul&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-bash&#34; data-lang=&#34;bash&#34;&gt;kubectl -n gitlab &lt;span style=&#34;color:#204a87&#34;&gt;exec&lt;/span&gt; -it gitlab-848789fcd6-ggm76 -- bash
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;ul&gt;
+&lt;li&gt;Run &lt;code&gt;gitlab-ctl status&lt;/code&gt; to show status, which can get you some general idea if anything such as puma keeps restarting:&lt;/li&gt;
+&lt;/ul&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-fallback&#34; data-lang=&#34;fallback&#34;&gt;gitlab-ctl status
+run: alertmanager: (pid 2095063) 89371s; run: log: (pid 1721296) 186791s
+run: gitaly: (pid 2095078) 89371s; run: log: (pid 1720630) 186892s
+run: gitlab-exporter: (pid 2095108) 89370s; run: log: (pid 1721103) 186809s
+run: gitlab-workhorse: (pid 2095110) 89369s; run: log: (pid 1721005) 186828s
+run: logrotate: (pid 2322981) 2968s; run: log: (pid 1720469) 186905s
+run: nginx: (pid 2095129) 89369s; run: log: (pid 2046027) 105649s
+run: node-exporter: (pid 2095213) 89368s; run: log: (pid 1721082) 186817s
+run: postgres-exporter: (pid 2095220) 89368s; run: log: (pid 1721317) 186787s
+run: postgresql: (pid 2095232) 89367s; run: log: (pid 1720718) 186885s
+run: prometheus: (pid 2095242) 89367s; run: log: (pid 1721158) 186799s
+run: puma: (pid 2330788) 21s; run: log: (pid 2046012) 105651s
+run: redis: (pid 2095285) 89366s; run: log: (pid 1720504) 186901s
+run: redis-exporter: (pid 2095291) 89366s; run: log: (pid 1721130) 186803s
+run: sidekiq: (pid 2095299) 89362s; run: log: (pid 1720957) 186835s
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;You can restart gitlab by running &lt;code&gt;gitlab-ctl restart&lt;/code&gt;.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;You can check a service&amp;rsquo;s log e.g. &lt;code&gt;gitlab-ctl tail puma&lt;/code&gt;.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;You can also check in /var/log/gitlab/gitlab-rails if gitlab-rails has some issues. Check &lt;code&gt;application.log&lt;/code&gt; and &lt;code&gt;production.log&lt;/code&gt;.`&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+
+
+&lt;/div&gt;
+
+&lt;p&gt;While we are inside our gitlab instance&amp;rsquo;s bash shell, we may as well configure the following which we will need for the tasks to follow. Note that ordinarily these configs should be passed to the container as environment variables in the deployment manifest, which is the right way to do it, though the more right way is just use the official helm chart and edit its values to suit your use case. But since it&amp;rsquo;s my first time with Gitlab there&amp;rsquo;s some trial and error involved so I decided to configure it by editing /etc/gitlab/gitlab.rb directly as if it was a bare-metal installation:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-fallback&#34; data-lang=&#34;fallback&#34;&gt;external_url is required
+external_url &amp;#34;http://192.168.1.221&amp;#34;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;while we are there, we will also want to enable the Gitlab Agent Server (KAS) which we will need later to deploy our app to our Kubernetes cluster using the pipeline we will build later
+##! Enable GitLab KAS&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-fallback&#34; data-lang=&#34;fallback&#34;&gt;gitlab_kas[&amp;#39;enable&amp;#39;] = true
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;&lt;a href=&#34;https://docs.gitlab.com/omnibus/settings/configuration.html#configure-the-external-url-for-gitlab&#34;&gt;Reconfigure&lt;/a&gt; Omnibus GitLab with:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-fallback&#34; data-lang=&#34;fallback&#34;&gt;gitlab-ctl reconfigure
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;To log into your root account, one way to reset the password is by issuing the following command:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-fallback&#34; data-lang=&#34;fallback&#34;&gt;devops@k8s-master:~$ k -n gitlab exec -it gitlab-848789fcd6-2p885 -- gitlab-rake &amp;#34;gitlab:password:reset[root]&amp;#34;
+Enter password:
+Confirm password:
+Password successfully updated for user with username root.
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;Refer to &lt;a href=&#34;https://docs.gitlab.com/omnibus/installation/index.html#set-up-the-initial-password&#34;&gt;official documentation&lt;/a&gt; for other ways to set the password.
+By default, Omnibus GitLab automatically generates a password for the initial administrator user account (root) and stores it to &lt;code&gt;/etc/gitlab/initial_root_password&lt;/code&gt; for at least 24 hours. For security reasons, after 24 hours, this file is automatically removed by the first gitlab-ctl reconfigure.&lt;/p&gt;
+&lt;p&gt;Next thing you will want to do is set up a proper user account and start a new repo for the webhook-app that we will work on in the next step.&lt;/p&gt;
+&lt;h2 id=&#34;webhook-app&#34;&gt;Webhook App&lt;/h2&gt;
+
+
+&lt;div class=&#34;alert alert-info&#34; role=&#34;alert&#34;&gt;
+&lt;h4 class=&#34;alert-heading&#34;&gt;Code:&lt;/h4&gt;
+
+    The source for the webhook app can be found &lt;a href=&#34;https://github.com/leokuan2021/webhook-app.git&#34;&gt;here&lt;/a&gt;.
+
+&lt;/div&gt;
+
+&lt;p&gt;The webhook app is very straightforward. I opted to use Node.js with Express to create the RESI API. The main thing is grab the token from our rocketchat&amp;rsquo;s incoming webhook and to keep things simple we will not have any authentication since there&amp;rsquo;s no requirement for it.&lt;/p&gt;
+&lt;h2 id=&#34;configuring-gitlab-to-build-and-deploy-webhook-app&#34;&gt;Configuring GitLab to build and deploy webhook-app&lt;/h2&gt;
+&lt;p&gt;Here comes the tricky part of this exercise. We have to set up the gitlab runner&lt;/p&gt;
+&lt;p&gt;&lt;img src=&#34;/static/img/SRE-DevOps-Challenge-Part-A/SRE-DevOps-Challenge-Part-A_2022-05-12-16-36-11.png&#34; alt=&#34;&#34;&gt;&lt;/p&gt;
+&lt;p&gt;We will install the helm chart way to install our gitlab runner and you are going to want to modify the default values for the helm chart. Once you have successfully deployed your runner, hit refresh on the settings/CICD page and you should see the runners shown as available.
+&lt;img src=&#34;/static/img/SRE-DevOps-Challenge-Part-A/SRE-DevOps-Challenge-Part-A_2022-05-12-16-53-56.png&#34; alt=&#34;&#34;&gt;&lt;/p&gt;
+&lt;p&gt;More official Gitlab documentation can be found &lt;a href=&#34;https://docs.gitlab.com/runner/install/kubernetes.html#installing-gitlab-runner-using-the-helm-chart&#34;&gt;here&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;Next, we can create our gitlab-ci.yml script (see source) and add our environment variables to gitlab
+&lt;img src=&#34;/static/img/SRE-DevOps-Challenge-Part-A/SRE-DevOps-Challenge-Part-A_2022-05-12-21-05-11.png&#34; alt=&#34;&#34;&gt;&lt;/p&gt;
+&lt;p&gt;In our case, we are adding our docker username and password and that will be it as far as configuring gitlab goes for our build stage.&lt;/p&gt;
+&lt;p&gt;For simplicity, we will skip the test stage for our simple app.&lt;/p&gt;
+&lt;p&gt;As for the deploy stage, we will need to configure the agent so that gitlab can deploy to our cluster.&lt;/p&gt;
+&lt;p&gt;To do that, follow official &lt;a href=&#34;https://docs.gitlab.com/ee/user/clusters/agent/install/#register-the-agent-with-gitlab&#34;&gt;documentation&lt;/a&gt;, and here&amp;rsquo;s a &lt;a href=&#34;https://www.youtube.com/watch?v=3gZCcrA0zW8&#34;&gt;video to walk you through the process&lt;/a&gt; as well.&lt;/p&gt;
+&lt;p&gt;we create a kubernetes-agent which contains information about the other projects that will be monitored by the agent, namely the webhook-app project.
+&lt;img src=&#34;/static/img/SRE-DevOps-Challenge-Part-A/SRE-DevOps-Challenge-Part-A_2022-05-12-22-00-24.png&#34; alt=&#34;&#34;&gt;&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-fallback&#34; data-lang=&#34;fallback&#34;&gt;devops@k8s-master:~/part-a/k8s-manifests$ sudo docker run --pull=always --rm \
+&amp;gt;     registry.gitlab.com/gitlab-org/cluster-integration/gitlab-agent/cli:stable generate \
+&amp;gt;     --agent-token=oKsw2K2fzUD91KXJnDYa5j2wT3ay5Y-ZVpB9VDLZ82k3yynQFQ \
+&amp;gt;     --kas-address=wss://192.168.1.221/-/kubernetes-agent/ \
+&amp;gt;     --agent-version stable \
+&amp;gt;     --namespace gitlab-kubernetes-agent | kubectl apply -f -
+stable: Pulling from gitlab-org/cluster-integration/gitlab-agent/cli
+2df365faf0e3: Pulling fs layer
+c6f4d1a13b69: Pulling fs layer
+798d1822cd5f: Pulling fs layer
+71a4deb2d4fa: Pulling fs layer
+495aaf9276ed: Pulling fs layer
+01fd94632652: Pulling fs layer
+72ed240a3a17: Pulling fs layer
+71a4deb2d4fa: Waiting
+495aaf9276ed: Waiting
+01fd94632652: Waiting
+72ed240a3a17: Waiting
+2df365faf0e3: Verifying Checksum
+2df365faf0e3: Download complete
+798d1822cd5f: Verifying Checksum
+798d1822cd5f: Download complete
+2df365faf0e3: Pull complete
+c6f4d1a13b69: Verifying Checksum
+c6f4d1a13b69: Download complete
+c6f4d1a13b69: Pull complete
+798d1822cd5f: Pull complete
+01fd94632652: Verifying Checksum
+01fd94632652: Download complete
+71a4deb2d4fa: Verifying Checksum
+71a4deb2d4fa: Download complete
+495aaf9276ed: Verifying Checksum
+495aaf9276ed: Download complete
+71a4deb2d4fa: Pull complete
+72ed240a3a17: Verifying Checksum
+72ed240a3a17: Download complete
+495aaf9276ed: Pull complete
+01fd94632652: Pull complete
+72ed240a3a17: Pull complete
+Digest: sha256:edaeffc4fc5e5ab2c3b26c2f06775584e17e35f2720fb6d6319789bb613e8cbc
+Status: Downloaded newer image for registry.gitlab.com/gitlab-org/cluster-integration/gitlab-agent/cli:stable
+namespace/gitlab-kubernetes-agent created
+serviceaccount/gitlab-agent created
+clusterrolebinding.rbac.authorization.k8s.io/gitlab-agent-cluster-admin created
+secret/gitlab-agent-token-tb2m5m7tg8 created
+deployment.apps/gitlab-agent created
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;&lt;img src=&#34;/static/img/SRE-DevOps-Challenge-Part-A/SRE-DevOps-Challenge-Part-A_2022-05-12-22-14-31.png&#34; alt=&#34;&#34;&gt;&lt;/p&gt;
+&lt;p&gt;&lt;img src=&#34;/static/img/SRE-DevOps-Challenge-Part-A/SRE-DevOps-Challenge-Part-A_2022-05-12-22-12-39.png&#34; alt=&#34;&#34;&gt;&lt;/p&gt;
+&lt;p&gt;&lt;img src=&#34;/static/img/SRE-DevOps-Challenge-Part-A/SRE-DevOps-Challenge-Part-A_2022-05-12-22-14-02.png&#34; alt=&#34;&#34;&gt;&lt;/p&gt;
+&lt;p&gt;Actually this will not work even though it says the agent is connected because we don&amp;rsquo;t have https.  kubectl does not send authorization header if target is http.&lt;/p&gt;
+&lt;p&gt;The certificate way is the only way to get it to work without https. However kubectl only works over https so no luck with http unless you are willing to go through setting up more rolebinding and user account conifguration in kubernetes in a deprecated sort of way but I don&amp;rsquo;t see a point in continuing down this path.&lt;/p&gt;
+&lt;p&gt;Let&amp;rsquo;s just enable &lt;code&gt;letsencrypt&lt;/code&gt; and use https
+back to gitlab.rb and reconfigure it now.&lt;/p&gt;
+&lt;p&gt;change &lt;code&gt;letsencrypt[&#39;enable&#39;] = nil&lt;/code&gt; to &lt;code&gt;letsencrypt[&#39;enable&#39;] = true&lt;/code&gt;
+&lt;a href=&#34;https://docs.gitlab.com/omnibus/settings/ssl.html#lets-encrypt-integration&#34;&gt;https://docs.gitlab.com/omnibus/settings/ssl.html#lets-encrypt-integration&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;then &lt;code&gt;gitlab-ctl reconfigure&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;To expose our gitlab instance to the public internet and use our own domain name, I use a ngrok. Ngrok is something I use from time to time to experiment quick builds and I have a paid account so I can use it with my own domain.&lt;/p&gt;
+&lt;p&gt;It creates a secure tunnel and you don&amp;rsquo;t have to mess with router and firewall setting and it&amp;rsquo;s very simple kill once you&amp;rsquo;re done with your one-off thing. Of course one could run it directly on one of the nodes&#39; localhost in the cluster and expose whatever service&amp;rsquo;s IP:nodeport from that endpoint, but there exists a neat &lt;a href=&#34;https://github.com/zufardhiyaulhaq/ngrok-operator&#34;&gt;ngrok-operator&lt;/a&gt; that makes running ngrok in kubernetes very simple.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-fallback&#34; data-lang=&#34;fallback&#34;&gt;helm repo add zufardhiyaulhaq https://charts.zufardhiyaulhaq.com/
+helm install ngrok-operator zufardhiyaulhaq/ngrok-operator
+kubectl apply -f ngrok.yaml
+ngrok start --all --config=ngrok.yaml
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;Then set up our kubernetes agent again similar to what we did before but with a proper https address this time.
+Now that we have both our runner and agent set up, we can then create our &lt;code&gt;webhook-app.yaml&lt;/code&gt; file which contains the manifest for our webhook-app&amp;rsquo;s deployment and service. Then we can move on to the .gitlab-ci.yml to define our pipeline.
+For our build stage, We are going to use docker in docker to build our app into a container, tag it with commit short sha and push it to docker hub.
+For the deploy stage, we will replace the placeholder &lt;VERSION&gt; with the latest commit_short_sha each time in our webhook-app.yaml file so that the correct image is pulled and deployed to our kubernetes cluster. Doing so ensures the correct image is deployed and allows us to easily rollback if we so desire, as opposed to always  tagging the latest image latest, which really doesn&amp;rsquo;t make a whole of sense in this scenario.&lt;/p&gt;
+&lt;p&gt;This wraps up our pipeline creation. We can run our pipeline and see what happens.&lt;/p&gt;
+&lt;hr&gt;
+&lt;p&gt;Set up incoming hook under integrations in rocketchat:&lt;/p&gt;
+&lt;p&gt;first I set up a new bot account called gitlab. Then Under integrations, I created a new incoming webhook.
+&lt;img src=&#34;/static/img/SRE-DevOps-Challenge-Part-A/SRE-DevOps-Challenge-Part-A_2022-05-25-21-26-59.png&#34; alt=&#34;&#34;&gt;&lt;/p&gt;
+&lt;p&gt;After it&amp;rsquo;s saved, the webhook URL and token are generated for this webhook.
+&lt;img src=&#34;/static/img/SRE-DevOps-Challenge-Part-A/SRE-DevOps-Challenge-Part-A_2022-05-25-21-27-53.png&#34; alt=&#34;&#34;&gt;&lt;/p&gt;
+&lt;p&gt;To test it, we can use curl or postman or anything really.
+show a picture of test&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-fallback&#34; data-lang=&#34;fallback&#34;&gt;devops@k8s-master:~$ curl -X POST -H &amp;#39;Content-Type: application/json&amp;#39; --data &amp;#39;{&amp;#34;text&amp;#34;:&amp;#34;Example message&amp;#34;}&amp;#39; http://rocketchat.leokuan.info/hooks/628f2bc88374570053f8945d/CG4d2wwWB2cd29W5ZXz7zfkWvWtJLE48YkkDwCBvoduoczgE
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;&lt;img src=&#34;/static/img/SRE-DevOps-Challenge-Part-A/SRE-DevOps-Challenge-Part-A_2022-06-02-00-11-23.png&#34; alt=&#34;&#34;&gt;&lt;/p&gt;
+&lt;p&gt;Next, we set up the outgoing webhook in gitlab:
+&lt;img src=&#34;/static/img/SRE-DevOps-Challenge-Part-A/SRE-DevOps-Challenge-Part-A_2022-06-02-00-15-37.png&#34; alt=&#34;&#34;&gt;
+putting it all together, let&amp;rsquo;s commit a change and watch this pipeline go.&lt;/p&gt;
+&lt;p&gt;When we commit changes, we get a little notification on rocketchat
+&lt;img src=&#34;/static/img/SRE-DevOps-Challenge-Part-A/SRE-DevOps-Challenge-Part-A_2022-06-02-00-25-21.png&#34; alt=&#34;&#34;&gt;
+&lt;img src=&#34;/static/img/SRE-DevOps-Challenge-Part-A/SRE-DevOps-Challenge-Part-A_2022-06-02-00-26-50.png&#34; alt=&#34;&#34;&gt;&lt;/p&gt;
+&lt;p&gt;Here&amp;rsquo;s our build stage:
+&lt;img src=&#34;/static/img/SRE-DevOps-Challenge-Part-A/SRE-DevOps-Challenge-Part-A_2022-06-02-00-26-31.png&#34; alt=&#34;&#34;&gt;&lt;/p&gt;
+&lt;p&gt;And here&amp;rsquo;s our deploy stage:
+&lt;img src=&#34;/static/img/SRE-DevOps-Challenge-Part-A/SRE-DevOps-Challenge-Part-A_2022-06-02-00-27-40.png&#34; alt=&#34;&#34;&gt;&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-fallback&#34; data-lang=&#34;fallback&#34;&gt;devops@k8s-master:~$ k -n gitlab describe deployments.apps webhook-app
+Name:                   webhook-app
+Namespace:              gitlab
+CreationTimestamp:      Wed, 01 Jun 2022 08:04:20 +0000
+Labels:                 app=webhook-app
+Annotations:            deployment.kubernetes.io/revision: 2
+Selector:               app=webhook-app
+Replicas:               1 desired | 1 updated | 1 total | 1 available | 0 unavailable
+StrategyType:           RollingUpdate
+MinReadySeconds:        0
+RollingUpdateStrategy:  25% max unavailable, 25% max surge
+Pod Template:
+  Labels:  app=webhook-app
+  Containers:
+   webhook-app:
+    Image:        leokuan/webhook-app:87b16712
+    Port:         &amp;lt;none&amp;gt;
+    Host Port:    &amp;lt;none&amp;gt;
+    Environment:  &amp;lt;none&amp;gt;
+    Mounts:       &amp;lt;none&amp;gt;
+  Volumes:        &amp;lt;none&amp;gt;
+Conditions:
+  Type           Status  Reason
+  ----           ------  ------
+  Available      True    MinimumReplicasAvailable
+  Progressing    True    NewReplicaSetAvailable
+OldReplicaSets:  &amp;lt;none&amp;gt;
+NewReplicaSet:   webhook-app-6469bfcfcf (1/1 replicas created)
+Events:
+  Type    Reason             Age    From                   Message
+  ----    ------             ----   ----                   -------
+  Normal  ScalingReplicaSet  4m50s  deployment-controller  Scaled up replica set webhook-app-6469bfcfcf to 1
+  Normal  ScalingReplicaSet  3m43s  deployment-controller  Scaled down replica set webhook-app-98cd4bb87 to 0
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;This concludes Part-A of the challenge. In Part-B we will work with Prometheus and Grafana to implement a simple monitoring solution, as well as configure auto scaling to take advantage of metrics.&lt;/p&gt;
+
+      </description>
+    </item>
+    
+    <item>
+      <title>Devops: DevOps Challenge Part B</title>
+      <link>/devops/sre-devops-challenge-part-b/</link>
+      <pubDate>Sun, 06 Mar 2022 14:19:02 -1000</pubDate>
+      
+      <guid>/devops/sre-devops-challenge-part-b/</guid>
+      <description>
+        
+        
+        &lt;p&gt;In part A of this challenge we deployed a REST API server app which sends a direct message to Rocket.chat triggered by a Gitlab commit event. In part B of this challenge we build on top of this app to provide some monitoring capabilities by exposing and scraping Prometheus metrics.&lt;/p&gt;
+
+
+&lt;div class=&#34;alert alert-info&#34; role=&#34;alert&#34;&gt;
+&lt;h4 class=&#34;alert-heading&#34;&gt;Code:&lt;/h4&gt;
+
+    The repo for this project can be found &lt;a href=&#34;https://github.com/leokuan2021/Devops-Challenge.git&#34;&gt;here&lt;/a&gt;.
+
+&lt;/div&gt;
+
+&lt;h2 id=&#34;deploying-prometheus-and-grafana-to-a-kubernetes-cluster&#34;&gt;Deploying Prometheus and Grafana to a Kubernetes Cluster&lt;/h2&gt;
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th&gt;Prerequisite&lt;/th&gt;
+&lt;th&gt;Deliverable&lt;/th&gt;
+&lt;th&gt;Requirement&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td&gt;Helm&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;values.yaml&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;Deploy Prometheus and Grafana to your k8s cluster using the kube-prometheus-stack Helm chart&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;There are many ways to deploy Prometheus to a Kubernetes cluster but using the kube-prometheus-stack Helm chart as required here is arguably the most straightforward way to accomplish it. The community-maintained chart can be found &lt;a href=&#34;https://github.com/prometheus-community/helm-charts/tree/main/charts/kube-prometheus-stack&#34;&gt;here&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;First let&amp;rsquo;s add the repo:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-bash&#34; data-lang=&#34;bash&#34;&gt;helm repo add prometheus-community https://prometheus-community.github.io/helm-charts &lt;span style=&#34;color:#ce5c00;font-weight:bold&#34;&gt;&amp;amp;&amp;amp;&lt;/span&gt; helm repo update
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;
+
+&lt;div class=&#34;alert alert-primary&#34; role=&#34;alert&#34;&gt;
+&lt;h4 class=&#34;alert-heading&#34;&gt;Tip&lt;/h4&gt;
+
+    &lt;p&gt;The kube-prometheus-stack helm chart&amp;rsquo;s values file is quite large at 2000+ lines, and if you&amp;rsquo;re working in the terminal in Vim like I was you might want to set &lt;code&gt;foldmethod=indent&lt;/code&gt;then use &lt;kbd&gt;z&lt;/kbd&gt;&lt;kbd&gt;a&lt;/kbd&gt;, &lt;kbd&gt;z&lt;/kbd&gt;&lt;kbd&gt;o&lt;/kbd&gt;, and &lt;kbd&gt;z&lt;/kbd&gt;&lt;kbd&gt;c&lt;/kbd&gt; to interact with your folds and make it a bit easier to navigate, but firing up VScode is just as easy; whatever floats your boat.&lt;/p&gt;
+&lt;p&gt;What I recommend for quick edits like this is save the default values.yaml for reference later if needed, make a copy, edit it, then do a vimdiff or colordiff to make sure the changes made are as intended before moving on to the next step.&lt;/p&gt;
+
+
+&lt;/div&gt;
+
+Save the chart&amp;rsquo;s default values to &lt;code&gt;prometheus-grafana-values-default.yaml&lt;/code&gt;:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-bash&#34; data-lang=&#34;bash&#34;&gt;helm show values prometheus-community/kube-prometheus-stack &amp;gt; prometheus-grafana-values-default.yaml
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;Make a copy then we will go ahead and make some changes to &lt;code&gt;prometheus-grafana-values.yaml&lt;/code&gt;:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-bash&#34; data-lang=&#34;bash&#34;&gt;cp  prometheus-grafana-values.yaml prometheus-grafana-values.yaml
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-bash&#34; data-lang=&#34;bash&#34;&gt;vim prometheus-grafana-values.yaml
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;One could use ephemeral storage for testing out Prometheus and Grafana quickly but it&amp;rsquo;s probably not what you want for actual operations. Even though there&amp;rsquo;s no requirement for persistent storage in the instructions I decided to set it up anyway.&lt;/p&gt;
+&lt;p&gt;For this particular exercise we will focus on these three things:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;Persist Prometheus&lt;/li&gt;
+&lt;li&gt;Persist Grafana&lt;/li&gt;
+&lt;li&gt;Add ingress to Grafana&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;Configure persistent storage for Prometheus in our &lt;code&gt;prometheus-grafana-values.yaml&lt;/code&gt; file:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-diff&#34; data-lang=&#34;diff&#34;&gt;     ## Prometheus StorageSpec for persistent data
+     ## ref: https://github.com/prometheus-operator/prometheus-operator/blob/main/Documentation/user-guides/storage.md
+     ##
+&lt;span style=&#34;color:#a40000&#34;&gt;-    storageSpec: {}
+&lt;/span&gt;&lt;span style=&#34;color:#a40000&#34;&gt;&lt;/span&gt;&lt;span style=&#34;color:#00a000&#34;&gt;+    storageSpec:
+&lt;/span&gt;&lt;span style=&#34;color:#00a000&#34;&gt;&lt;/span&gt;     ## Using PersistentVolumeClaim
+     ##
+&lt;span style=&#34;color:#a40000&#34;&gt;-    #  volumeClaimTemplate:
+&lt;/span&gt;&lt;span style=&#34;color:#a40000&#34;&gt;-    #    spec:
+&lt;/span&gt;&lt;span style=&#34;color:#a40000&#34;&gt;-    #      storageClassName: gluster
+&lt;/span&gt;&lt;span style=&#34;color:#a40000&#34;&gt;-    #      accessModes: [&amp;#34;ReadWriteOnce&amp;#34;]
+&lt;/span&gt;&lt;span style=&#34;color:#a40000&#34;&gt;-    #      resources:
+&lt;/span&gt;&lt;span style=&#34;color:#a40000&#34;&gt;-    #        requests:
+&lt;/span&gt;&lt;span style=&#34;color:#a40000&#34;&gt;-    #          storage: 50Gi
+&lt;/span&gt;&lt;span style=&#34;color:#a40000&#34;&gt;&lt;/span&gt;&lt;span style=&#34;color:#00a000&#34;&gt;+      volumeClaimTemplate:
+&lt;/span&gt;&lt;span style=&#34;color:#00a000&#34;&gt;+        spec:
+&lt;/span&gt;&lt;span style=&#34;color:#00a000&#34;&gt;+          storageClassName: longhorn
+&lt;/span&gt;&lt;span style=&#34;color:#00a000&#34;&gt;+          accessModes: [&amp;#34;ReadWriteOnce&amp;#34;]
+&lt;/span&gt;&lt;span style=&#34;color:#00a000&#34;&gt;+          resources:
+&lt;/span&gt;&lt;span style=&#34;color:#00a000&#34;&gt;+            requests:
+&lt;/span&gt;&lt;span style=&#34;color:#00a000&#34;&gt;+              storage: 50Gi
+&lt;/span&gt;&lt;span style=&#34;color:#00a000&#34;&gt;&lt;/span&gt;     #    selector: {}
+
+     ## Using tmpfs volume
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;and configure persistent storage and ingress for Grafana:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-diff&#34; data-lang=&#34;diff&#34;&gt; grafana:
+   enabled: true
+&lt;span style=&#34;color:#00a000&#34;&gt;+  ## Grafana&amp;#39;s primary configuration
+&lt;/span&gt;&lt;span style=&#34;color:#00a000&#34;&gt;+  ## NOTE: values in map will be converted to ini format
+&lt;/span&gt;&lt;span style=&#34;color:#00a000&#34;&gt;+  ## ref: http://docs.grafana.org/installation/configuration/
+&lt;/span&gt;&lt;span style=&#34;color:#00a000&#34;&gt;+  grafana.ini:
+&lt;/span&gt;&lt;span style=&#34;color:#00a000&#34;&gt;+    paths:
+&lt;/span&gt;&lt;span style=&#34;color:#00a000&#34;&gt;+      data: /var/lib/grafana/data
+&lt;/span&gt;&lt;span style=&#34;color:#00a000&#34;&gt;+      logs: /var/log/grafana
+&lt;/span&gt;&lt;span style=&#34;color:#00a000&#34;&gt;+      plugins: /var/lib/grafana/plugins
+&lt;/span&gt;&lt;span style=&#34;color:#00a000&#34;&gt;+      provisioning: /etc/grafana/provisioning
+&lt;/span&gt;&lt;span style=&#34;color:#00a000&#34;&gt;+    analytics:
+&lt;/span&gt;&lt;span style=&#34;color:#00a000&#34;&gt;+      check_for_updates: true
+&lt;/span&gt;&lt;span style=&#34;color:#00a000&#34;&gt;+    log:
+&lt;/span&gt;&lt;span style=&#34;color:#00a000&#34;&gt;+      mode: console
+&lt;/span&gt;&lt;span style=&#34;color:#00a000&#34;&gt;+    grafana_net:
+&lt;/span&gt;&lt;span style=&#34;color:#00a000&#34;&gt;+      url: https://grafana.net
+&lt;/span&gt;&lt;span style=&#34;color:#00a000&#34;&gt;+    server:
+&lt;/span&gt;&lt;span style=&#34;color:#00a000&#34;&gt;+      domain: grafana.leokuan.info
+&lt;/span&gt;&lt;span style=&#34;color:#00a000&#34;&gt;+      root_url: &amp;#34;https://grafana.leokuan.info&amp;#34;
+&lt;/span&gt;&lt;span style=&#34;color:#00a000&#34;&gt;+
+&lt;/span&gt;&lt;span style=&#34;color:#00a000&#34;&gt;&lt;/span&gt;   namespaceOverride: &amp;#34;&amp;#34;
+
+&lt;span style=&#34;color:#00a000&#34;&gt;+    ## Enable persistence using Persistent Volume Claims
+&lt;/span&gt;&lt;span style=&#34;color:#00a000&#34;&gt;+  ## ref: http://kubernetes.io/docs/user-guide/persistent-volumes/
+&lt;/span&gt;&lt;span style=&#34;color:#00a000&#34;&gt;+  ##
+&lt;/span&gt;&lt;span style=&#34;color:#00a000&#34;&gt;+  persistence:
+&lt;/span&gt;&lt;span style=&#34;color:#00a000&#34;&gt;+    type: pvc
+&lt;/span&gt;&lt;span style=&#34;color:#00a000&#34;&gt;+    enabled: true
+&lt;/span&gt;&lt;span style=&#34;color:#00a000&#34;&gt;+    storageClassName: longhorn
+&lt;/span&gt;&lt;span style=&#34;color:#00a000&#34;&gt;+    accessModes:
+&lt;/span&gt;&lt;span style=&#34;color:#00a000&#34;&gt;+      - ReadWriteOnce
+&lt;/span&gt;&lt;span style=&#34;color:#00a000&#34;&gt;+    size: 10Gi
+&lt;/span&gt;&lt;span style=&#34;color:#00a000&#34;&gt;+    # annotations: {}
+&lt;/span&gt;&lt;span style=&#34;color:#00a000&#34;&gt;+    finalizers:
+&lt;/span&gt;&lt;span style=&#34;color:#00a000&#34;&gt;+      - kubernetes.io/pvc-protection
+&lt;/span&gt;&lt;span style=&#34;color:#00a000&#34;&gt;+    # subPath: &amp;#34;&amp;#34;
+&lt;/span&gt;&lt;span style=&#34;color:#00a000&#34;&gt;+    # existingClaim:
+&lt;/span&gt;&lt;span style=&#34;color:#00a000&#34;&gt;&lt;/span&gt;&lt;span style=&#34;color:#800080;font-weight:bold&#34;&gt;@@ -668,25 +707,26 @@
+&lt;/span&gt;&lt;span style=&#34;color:#800080;font-weight:bold&#34;&gt;&lt;/span&gt;   ingress:
+     ## If true, Grafana Ingress will be created
+&lt;span style=&#34;color:#a40000&#34;&gt;-    enabled: false
+&lt;/span&gt;&lt;span style=&#34;color:#a40000&#34;&gt;&lt;/span&gt;&lt;span style=&#34;color:#00a000&#34;&gt;+    enabled: true
+&lt;/span&gt;&lt;span style=&#34;color:#00a000&#34;&gt;&lt;/span&gt;
+     ## Annotations for Grafana Ingress
+&lt;span style=&#34;color:#a40000&#34;&gt;-    annotations: {}
+&lt;/span&gt;&lt;span style=&#34;color:#a40000&#34;&gt;&lt;/span&gt;&lt;span style=&#34;color:#00a000&#34;&gt;+    annotations:
+&lt;/span&gt;&lt;span style=&#34;color:#00a000&#34;&gt;+      kubernetes.io/ingress.class: nginx
+&lt;/span&gt;&lt;span style=&#34;color:#00a000&#34;&gt;&lt;/span&gt;       # kubernetes.io/tls-acme: &amp;#34;true&amp;#34;
+
+     ## Labels to be added to the Ingress    
+&lt;span style=&#34;color:#a40000&#34;&gt;-    labels: {}
+&lt;/span&gt;&lt;span style=&#34;color:#a40000&#34;&gt;&lt;/span&gt;&lt;span style=&#34;color:#00a000&#34;&gt;+    labels:
+&lt;/span&gt;&lt;span style=&#34;color:#00a000&#34;&gt;+      app: grafana
+&lt;/span&gt;&lt;span style=&#34;color:#00a000&#34;&gt;&lt;/span&gt;
+     ## Hostnames.
+     ## Must be provided if Ingress is enable.
+     ##
+&lt;span style=&#34;color:#a40000&#34;&gt;-    # hosts:
+&lt;/span&gt;&lt;span style=&#34;color:#a40000&#34;&gt;-    #   - grafana.domain.com
+&lt;/span&gt;&lt;span style=&#34;color:#a40000&#34;&gt;-    hosts: []
+&lt;/span&gt;&lt;span style=&#34;color:#a40000&#34;&gt;-
+&lt;/span&gt;&lt;span style=&#34;color:#a40000&#34;&gt;&lt;/span&gt;&lt;span style=&#34;color:#00a000&#34;&gt;+    hosts:
+&lt;/span&gt;&lt;span style=&#34;color:#00a000&#34;&gt;+      - grafana.leokuan.info
+&lt;/span&gt;&lt;span style=&#34;color:#00a000&#34;&gt;+
+&lt;/span&gt;&lt;span style=&#34;color:#00a000&#34;&gt;&lt;/span&gt;     ## Path for grafana ingress
+     path: /
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;After configuring the values file, we can finally install the helm chart.&lt;/p&gt;
+&lt;p&gt;let us first create a new namespace in our k8s cluster called &lt;code&gt;monitoring&lt;/code&gt; for all our monitoring resources&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;kubectl create namespace monitoring&lt;/code&gt;&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-bash&#34; data-lang=&#34;bash&#34;&gt;helm install --namespace&lt;span style=&#34;color:#ce5c00;font-weight:bold&#34;&gt;=&lt;/span&gt;monitoring prometheus prometheus-community/kube-prometheus-stack --values prometheus-grafana-values.yaml
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-fallback&#34; data-lang=&#34;fallback&#34;&gt;devops@k8s-master:~/part-b/prometheus-grafana-values$ helm install --namespace=monitoring prometheus prometheus-community/kube-prometheus-stack --values prometheus-grafana-values.yaml
+NAME: prometheus
+LAST DEPLOYED: Fri Jun  3 02:20:46 2022
+NAMESPACE: monitoring
+STATUS: deployed
+REVISION: 1
+NOTES:
+kube-prometheus-stack has been installed. Check its status by running:
+kubectl --namespace monitoring get pods -l &amp;#34;release=prometheus&amp;#34;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;The following resources will be created&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-fallback&#34; data-lang=&#34;fallback&#34;&gt;devops@k8s-master:~/part-b/prometheus-grafana-values$ k -n monitoring get all
+NAME                                                         READY   STATUS    RESTARTS   AGE
+pod/alertmanager-prometheus-kube-prometheus-alertmanager-0   2/2     Running   0          52s
+pod/prometheus-grafana-6d6498b446-lcdr9                      3/3     Running   0          60s
+pod/prometheus-kube-prometheus-operator-7fc5d45d99-4c7g2     1/1     Running   0          60s
+pod/prometheus-kube-state-metrics-94f76f559-wjjdk            1/1     Running   0          60s
+pod/prometheus-prometheus-kube-prometheus-prometheus-0       2/2     Running   0          51s
+pod/prometheus-prometheus-node-exporter-48864                1/1     Running   0          60s
+pod/prometheus-prometheus-node-exporter-cklf9                1/1     Running   0          60s
+pod/prometheus-prometheus-node-exporter-p9r6r                1/1     Running   0          60s
+
+NAME                                              TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)                      AGE
+service/alertmanager-operated                     ClusterIP   None             &amp;lt;none&amp;gt;        9093/TCP,9094/TCP,9094/UDP   52s
+service/prometheus-grafana                        ClusterIP   10.99.67.46      &amp;lt;none&amp;gt;        80/TCP                       61s
+service/prometheus-kube-prometheus-alertmanager   ClusterIP   10.97.233.56     &amp;lt;none&amp;gt;        9093/TCP                     61s
+service/prometheus-kube-prometheus-operator       ClusterIP   10.96.243.205    &amp;lt;none&amp;gt;        443/TCP                      61s
+service/prometheus-kube-prometheus-prometheus     ClusterIP   10.110.118.134   &amp;lt;none&amp;gt;        9090/TCP                     61s
+service/prometheus-kube-state-metrics             ClusterIP   10.99.11.14      &amp;lt;none&amp;gt;        8080/TCP                     61s
+service/prometheus-operated                       ClusterIP   None             &amp;lt;none&amp;gt;        9090/TCP                     51s
+service/prometheus-prometheus-node-exporter       ClusterIP   10.99.26.63      &amp;lt;none&amp;gt;        9100/TCP                     61s
+
+NAME                                                 DESIRED   CURRENT   READY   UP-TO-DATE   AVAILABLE   NODE SELECTOR   AGE
+daemonset.apps/prometheus-prometheus-node-exporter   3         3         3       3            3           &amp;lt;none&amp;gt;          61s
+
+NAME                                                  READY   UP-TO-DATE   AVAILABLE   AGE
+deployment.apps/prometheus-grafana                    1/1     1            1           61s
+deployment.apps/prometheus-kube-prometheus-operator   1/1     1            1           61s
+deployment.apps/prometheus-kube-state-metrics         1/1     1            1           61s
+
+NAME                                                             DESIRED   CURRENT   READY   AGE
+replicaset.apps/prometheus-grafana-6d6498b446                    1         1         1       60s
+replicaset.apps/prometheus-kube-prometheus-operator-7fc5d45d99   1         1         1       60s
+replicaset.apps/prometheus-kube-state-metrics-94f76f559          1         1         1       60s
+
+NAME                                                                    READY   AGE
+statefulset.apps/alertmanager-prometheus-kube-prometheus-alertmanager   1/1     52s
+statefulset.apps/prometheus-prometheus-kube-prometheus-prometheus       1/1     51s
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;For the purpose of this exercise we will edit the service objects &lt;code&gt;prometheus-grafana&lt;/code&gt; and &lt;code&gt;prometheus-kube-prometheus-prometheus&lt;/code&gt; to use LoadBalancer instead of ClusterIP and set up DNS as well.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-fallback&#34; data-lang=&#34;fallback&#34;&gt;devops@k8s-master:~/part-b/prometheus-grafana-values$ k -n monitoring edit svc prometheus-grafana
+devops@k8s-master:~/part-b/prometheus-grafana-values$ k -n monitoring edit svc prometheus-kube-prometheus-prometheus
+
+selector:
+  app.kubernetes.io/instance: prometheus
+  app.kubernetes.io/name: grafana
+sessionAffinity: None
+type: LoadBalancer
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-fallback&#34; data-lang=&#34;fallback&#34;&gt;devops@k8s-master:~/part-b/prometheus-grafana-values$ k -n monitoring get svc
+NAME                                      TYPE           CLUSTER-IP       EXTERNAL-IP     PORT(S)                      AGE
+alertmanager-operated                     ClusterIP      None             &amp;lt;none&amp;gt;          9093/TCP,9094/TCP,9094/UDP   64m
+prometheus-grafana                        LoadBalancer   10.99.67.46      192.168.1.223   80:31733/TCP                 64m
+prometheus-kube-prometheus-alertmanager   ClusterIP      10.97.233.56     &amp;lt;none&amp;gt;          9093/TCP                     64m
+prometheus-kube-prometheus-operator       ClusterIP      10.96.243.205    &amp;lt;none&amp;gt;          443/TCP                      64m
+prometheus-kube-prometheus-prometheus     LoadBalancer   10.110.118.134   192.168.1.224   9090:30328/TCP               64m
+prometheus-kube-state-metrics             ClusterIP      10.99.11.14      &amp;lt;none&amp;gt;          8080/TCP                     64m
+prometheus-operated                       ClusterIP      None             &amp;lt;none&amp;gt;          9090/TCP                     64m
+prometheus-prometheus-node-exporter       ClusterIP      10.99.26.63      &amp;lt;none&amp;gt;          9100/TCP                     64m
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;Optionally configure NodePort to expose your Prometheus and Grafana deployment to access their WebUI from your workstation&amp;rsquo;s browser if you don&amp;rsquo;t have a proper domain set up. Also note that if you don&amp;rsquo;t have valid certificates configured, Kubernetes will reject any client connections on HTTPS and thus Prometheus will show these kube system targets as being down: &lt;code&gt;kube-controller-manager&lt;/code&gt;,&lt;code&gt;kube-scheduler&lt;/code&gt;,&lt;code&gt;kube-etcd&lt;/code&gt;. More on this &lt;a href=&#34;https://github.com/prometheus-operator/kube-prometheus/issues/718&#34;&gt;here&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;prometheus-grafana&lt;/code&gt; and &lt;code&gt;prometheus-kube-prometheus-prometheus&lt;/code&gt; are the service objects you may want to edit to configure that NodePort for the WebUI.&lt;/p&gt;
+&lt;p&gt;Now go ahead and point your browser to the frontend of your Prometheus and Grafana instance and confirm both are working properly.
+The default admin user is &lt;code&gt;admin&lt;/code&gt; and the password is &lt;code&gt;prom-operator&lt;/code&gt;, which you can also retrieve by issuing the following commands:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-bash&#34; data-lang=&#34;bash&#34;&gt;kubectl get secret --namespace monitoring prometheus-grafana -o &lt;span style=&#34;color:#000&#34;&gt;jsonpath&lt;/span&gt;&lt;span style=&#34;color:#ce5c00;font-weight:bold&#34;&gt;=&lt;/span&gt;&lt;span style=&#34;color:#4e9a06&#34;&gt;&amp;#34;{.data.admin-user}&amp;#34;&lt;/span&gt; &lt;span style=&#34;color:#000;font-weight:bold&#34;&gt;|&lt;/span&gt; base64 --decode &lt;span style=&#34;color:#000;font-weight:bold&#34;&gt;;&lt;/span&gt; &lt;span style=&#34;color:#204a87&#34;&gt;echo&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-bash&#34; data-lang=&#34;bash&#34;&gt;kubectl get secret --namespace monitoring prometheus-grafana -o &lt;span style=&#34;color:#000&#34;&gt;jsonpath&lt;/span&gt;&lt;span style=&#34;color:#ce5c00;font-weight:bold&#34;&gt;=&lt;/span&gt;&lt;span style=&#34;color:#4e9a06&#34;&gt;&amp;#34;{.data.admin-password}&amp;#34;&lt;/span&gt; &lt;span style=&#34;color:#000;font-weight:bold&#34;&gt;|&lt;/span&gt; base64 --decode &lt;span style=&#34;color:#000;font-weight:bold&#34;&gt;;&lt;/span&gt; &lt;span style=&#34;color:#204a87&#34;&gt;echo&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;&lt;img src=&#34;/static/img/SRE-DevOps-Challenge-Part-B/SRE-DevOps-Challenge-Part-B_2022-06-02-17-34-08.png&#34; alt=&#34;&#34;&gt;
+&lt;img src=&#34;/static/img/SRE-DevOps-Challenge-Part-B/SRE-DevOps-Challenge-Part-B_2022-06-02-17-33-53.png&#34; alt=&#34;&#34;&gt;&lt;/p&gt;
+&lt;h2 id=&#34;adding-a-prometheus-metrics-endpoint-to-webhook-app&#34;&gt;Adding a Prometheus metrics endpoint to webhook-app&lt;/h2&gt;
+
+
+&lt;div class=&#34;alert alert-primary&#34; role=&#34;alert&#34;&gt;
+&lt;h4 class=&#34;alert-heading&#34;&gt;Requirement:&lt;/h4&gt;
+
+    Add a Prometheus metrics endpoint to your REST API that exposes a count of received webhooks.
+
+&lt;/div&gt;
+
+&lt;p&gt;For this we are going back to our nodejs webhook app. A quick search of npmjs returned two packages prom-client and express-prom-bundle which uses the former package under the hood. Prom-client looks well documented and simple enough to use for our simple case and seeing as I have no good reason to incur additional dependency I opted for &lt;a href=&#34;https://github.com/siimon/prom-client#custom-metrics&#34;&gt;prom-client&lt;/a&gt;.
+To install &lt;code&gt;prom-client&lt;/code&gt;:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-bash&#34; data-lang=&#34;bash&#34;&gt;npm install prom-client
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;Obviously the Counter type is what we will utilize to implement the webhook count metric, which only goes up and resets when the process restarts.  We add the two mandatory parameters &lt;code&gt;name&lt;/code&gt; and &lt;code&gt;help&lt;/code&gt; and the counter is incremented when a POST request is made to the &amp;ldquo;/&amp;rdquo; route. Note that there&amp;rsquo;s no reset mechanism implemented for the counter, since there is no requirement for it. Let&amp;rsquo;s add the following code to the &lt;code&gt;webhook-app.js&lt;/code&gt; file:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-js&#34; data-lang=&#34;js&#34;&gt;&lt;span style=&#34;color:#8f5902;font-style:italic&#34;&gt;/* ... */&lt;/span&gt;
+&lt;span style=&#34;color:#204a87;font-weight:bold&#34;&gt;const&lt;/span&gt; &lt;span style=&#34;color:#000&#34;&gt;http&lt;/span&gt; &lt;span style=&#34;color:#ce5c00;font-weight:bold&#34;&gt;=&lt;/span&gt; &lt;span style=&#34;color:#000&#34;&gt;require&lt;/span&gt;&lt;span style=&#34;color:#000;font-weight:bold&#34;&gt;(&lt;/span&gt;&lt;span style=&#34;color:#4e9a06&#34;&gt;&amp;#39;http&amp;#39;&lt;/span&gt;&lt;span style=&#34;color:#000;font-weight:bold&#34;&gt;)&lt;/span&gt;
+&lt;span style=&#34;color:#204a87;font-weight:bold&#34;&gt;const&lt;/span&gt; &lt;span style=&#34;color:#000&#34;&gt;server&lt;/span&gt; &lt;span style=&#34;color:#ce5c00;font-weight:bold&#34;&gt;=&lt;/span&gt; &lt;span style=&#34;color:#000&#34;&gt;http&lt;/span&gt;&lt;span style=&#34;color:#000;font-weight:bold&#34;&gt;.&lt;/span&gt;&lt;span style=&#34;color:#000&#34;&gt;createServer&lt;/span&gt;&lt;span style=&#34;color:#000;font-weight:bold&#34;&gt;(&lt;/span&gt;&lt;span style=&#34;color:#000&#34;&gt;app&lt;/span&gt;&lt;span style=&#34;color:#000;font-weight:bold&#34;&gt;)&lt;/span&gt;
+&lt;span style=&#34;color:#204a87;font-weight:bold&#34;&gt;const&lt;/span&gt; &lt;span style=&#34;color:#000&#34;&gt;client&lt;/span&gt; &lt;span style=&#34;color:#ce5c00;font-weight:bold&#34;&gt;=&lt;/span&gt; &lt;span style=&#34;color:#000&#34;&gt;require&lt;/span&gt;&lt;span style=&#34;color:#000;font-weight:bold&#34;&gt;(&lt;/span&gt;&lt;span style=&#34;color:#4e9a06&#34;&gt;&amp;#39;prom-client&amp;#39;&lt;/span&gt;&lt;span style=&#34;color:#000;font-weight:bold&#34;&gt;)&lt;/span&gt;
+
+&lt;span style=&#34;color:#204a87;font-weight:bold&#34;&gt;let&lt;/span&gt; &lt;span style=&#34;color:#000&#34;&gt;register&lt;/span&gt; &lt;span style=&#34;color:#ce5c00;font-weight:bold&#34;&gt;=&lt;/span&gt; &lt;span style=&#34;color:#204a87;font-weight:bold&#34;&gt;new&lt;/span&gt; &lt;span style=&#34;color:#000&#34;&gt;client&lt;/span&gt;&lt;span style=&#34;color:#000;font-weight:bold&#34;&gt;.&lt;/span&gt;&lt;span style=&#34;color:#000&#34;&gt;Registry&lt;/span&gt;&lt;span style=&#34;color:#000;font-weight:bold&#34;&gt;()&lt;/span&gt;
+&lt;span style=&#34;color:#204a87;font-weight:bold&#34;&gt;const&lt;/span&gt; &lt;span style=&#34;color:#000&#34;&gt;webhookCount&lt;/span&gt; &lt;span style=&#34;color:#ce5c00;font-weight:bold&#34;&gt;=&lt;/span&gt; &lt;span style=&#34;color:#204a87;font-weight:bold&#34;&gt;new&lt;/span&gt; &lt;span style=&#34;color:#000&#34;&gt;client&lt;/span&gt;&lt;span style=&#34;color:#000;font-weight:bold&#34;&gt;.&lt;/span&gt;&lt;span style=&#34;color:#000&#34;&gt;Counter&lt;/span&gt;&lt;span style=&#34;color:#000;font-weight:bold&#34;&gt;({&lt;/span&gt;
+    &lt;span style=&#34;color:#000&#34;&gt;name&lt;/span&gt;&lt;span style=&#34;color:#ce5c00;font-weight:bold&#34;&gt;:&lt;/span&gt; &lt;span style=&#34;color:#4e9a06&#34;&gt;&amp;#34;webhook_count&amp;#34;&lt;/span&gt;&lt;span style=&#34;color:#000;font-weight:bold&#34;&gt;,&lt;/span&gt;
+    &lt;span style=&#34;color:#000&#34;&gt;help&lt;/span&gt;&lt;span style=&#34;color:#ce5c00;font-weight:bold&#34;&gt;:&lt;/span&gt; &lt;span style=&#34;color:#4e9a06&#34;&gt;&amp;#34;Number of webhooks received&amp;#34;&lt;/span&gt;
+&lt;span style=&#34;color:#000;font-weight:bold&#34;&gt;})&lt;/span&gt;
+&lt;span style=&#34;color:#8f5902;font-style:italic&#34;&gt;/* ... */&lt;/span&gt;
+
+&lt;span style=&#34;color:#000&#34;&gt;register&lt;/span&gt;&lt;span style=&#34;color:#000;font-weight:bold&#34;&gt;.&lt;/span&gt;&lt;span style=&#34;color:#000&#34;&gt;registerMetric&lt;/span&gt;&lt;span style=&#34;color:#000;font-weight:bold&#34;&gt;(&lt;/span&gt;&lt;span style=&#34;color:#000&#34;&gt;webhookCount&lt;/span&gt;&lt;span style=&#34;color:#000;font-weight:bold&#34;&gt;)&lt;/span&gt;
+&lt;span style=&#34;color:#000&#34;&gt;register&lt;/span&gt;&lt;span style=&#34;color:#000;font-weight:bold&#34;&gt;.&lt;/span&gt;&lt;span style=&#34;color:#000&#34;&gt;setDefaultLabels&lt;/span&gt;&lt;span style=&#34;color:#000;font-weight:bold&#34;&gt;({&lt;/span&gt;
+  &lt;span style=&#34;color:#000&#34;&gt;app&lt;/span&gt;&lt;span style=&#34;color:#ce5c00;font-weight:bold&#34;&gt;:&lt;/span&gt; &lt;span style=&#34;color:#4e9a06&#34;&gt;&amp;#39;webhook-app&amp;#39;&lt;/span&gt;
+&lt;span style=&#34;color:#000;font-weight:bold&#34;&gt;})&lt;/span&gt;
+
+&lt;span style=&#34;color:#8f5902;font-style:italic&#34;&gt;/* ... */&lt;/span&gt;
+&lt;span style=&#34;color:#000&#34;&gt;app&lt;/span&gt;&lt;span style=&#34;color:#000;font-weight:bold&#34;&gt;.&lt;/span&gt;&lt;span style=&#34;color:#000&#34;&gt;post&lt;/span&gt;&lt;span style=&#34;color:#000;font-weight:bold&#34;&gt;(&lt;/span&gt;&lt;span style=&#34;color:#4e9a06&#34;&gt;&amp;#39;/&amp;#39;&lt;/span&gt;&lt;span style=&#34;color:#000;font-weight:bold&#34;&gt;,&lt;/span&gt; &lt;span style=&#34;color:#000;font-weight:bold&#34;&gt;(&lt;/span&gt;&lt;span style=&#34;color:#000&#34;&gt;req&lt;/span&gt;&lt;span style=&#34;color:#000;font-weight:bold&#34;&gt;,&lt;/span&gt; &lt;span style=&#34;color:#000&#34;&gt;res&lt;/span&gt;&lt;span style=&#34;color:#000;font-weight:bold&#34;&gt;)&lt;/span&gt; &lt;span style=&#34;color:#000;font-weight:bold&#34;&gt;=&amp;gt;&lt;/span&gt; &lt;span style=&#34;color:#000;font-weight:bold&#34;&gt;{&lt;/span&gt;
+    &lt;span style=&#34;color:#000&#34;&gt;webhookCount&lt;/span&gt;&lt;span style=&#34;color:#000;font-weight:bold&#34;&gt;.&lt;/span&gt;&lt;span style=&#34;color:#000&#34;&gt;inc&lt;/span&gt;&lt;span style=&#34;color:#000;font-weight:bold&#34;&gt;(&lt;/span&gt;&lt;span style=&#34;color:#0000cf;font-weight:bold&#34;&gt;1&lt;/span&gt;&lt;span style=&#34;color:#000;font-weight:bold&#34;&gt;)&lt;/span&gt;
+     &lt;span style=&#34;color:#8f5902;font-style:italic&#34;&gt;/* ... */&lt;/span&gt;
+&lt;span style=&#34;color:#000;font-weight:bold&#34;&gt;})&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;Run it&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-bash&#34; data-lang=&#34;bash&#34;&gt;node webhook-app.js
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;Let&amp;rsquo;s test it out locally,&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-bash&#34; data-lang=&#34;bash&#34;&gt;curl -X POST http://localhost:3000
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-bash&#34; data-lang=&#34;bash&#34;&gt;curl http://localhost:3000/metrics
+&lt;span style=&#34;color:#8f5902;font-style:italic&#34;&gt;# HELP webhook_count Number of webhooks received&lt;/span&gt;
+&lt;span style=&#34;color:#8f5902;font-style:italic&#34;&gt;# TYPE webhook_count counter&lt;/span&gt;
+webhook_count&lt;span style=&#34;color:#ce5c00;font-weight:bold&#34;&gt;{&lt;/span&gt;&lt;span style=&#34;color:#000&#34;&gt;app&lt;/span&gt;&lt;span style=&#34;color:#ce5c00;font-weight:bold&#34;&gt;=&lt;/span&gt;&lt;span style=&#34;color:#4e9a06&#34;&gt;&amp;#34;webhook-app&amp;#34;&lt;/span&gt;&lt;span style=&#34;color:#ce5c00;font-weight:bold&#34;&gt;}&lt;/span&gt; &lt;span style=&#34;color:#0000cf;font-weight:bold&#34;&gt;2&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;One easy way to test is poll our metric endpoint using the watch command and have it refresh every 0.1s, note that it&amp;rsquo;s the minimum number.
+To generate webhook we can just send POST request to our API server and watch the number increase as&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-bash&#34; data-lang=&#34;bash&#34;&gt;xargs -I % -P &lt;span style=&#34;color:#0000cf;font-weight:bold&#34;&gt;20&lt;/span&gt; curl -X POST http://webhook-app.leokuan.info/ &amp;lt; &amp;lt;&lt;span style=&#34;color:#ce5c00;font-weight:bold&#34;&gt;(&lt;/span&gt;&lt;span style=&#34;color:#204a87&#34;&gt;printf&lt;/span&gt; &lt;span style=&#34;color:#4e9a06&#34;&gt;&amp;#39;%s\n&amp;#39;&lt;/span&gt; &lt;span style=&#34;color:#ce5c00;font-weight:bold&#34;&gt;{&lt;/span&gt;1..50000&lt;span style=&#34;color:#ce5c00;font-weight:bold&#34;&gt;})&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;Looks like prom-client works as advertised. Let&amp;rsquo;s build and test the image locally and push it to dockerhub.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-bash&#34; data-lang=&#34;bash&#34;&gt;docker build 
+docker run
+
+Listening at xxxxxxxx
+docker push xxxxx
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;Note: if maybe you&amp;rsquo;re wondering why I am not using the pipeline built in part A. There&amp;rsquo;s no requirement for using that in Part B&amp;rsquo;s instructions and I just felt like making the solution more stand-alone. It&amp;rsquo;s as simple as committing the webhook-app.js changes to our gitlab instance.&lt;/p&gt;
+&lt;p&gt;Moving on, there&amp;rsquo;s no changes to our &lt;code&gt;deployment.yaml&lt;/code&gt; and &lt;code&gt;service.yaml&lt;/code&gt; on the Kubernetes side of things, since we pushed a new version of the app to Docker hub, let&amp;rsquo;s rollout the new version. Note that I am using :latest image for the deployment, best practice is to always pin everything to a specific version unless you have a good reason, quick and dirty is my reason and that&amp;rsquo;s good enough for MVS.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-bash&#34; data-lang=&#34;bash&#34;&gt;kubectl -n gitlab rollout restart deployment webhook-app
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;again, we can test the deployement again by curling the NodeIP:NodePort/metrics since we have the deployement exposed on nodeport.
+here&amp;rsquo;s the command and here&amp;rsquo;s the output&lt;/p&gt;
+&lt;h2 id=&#34;configuring-prometheus-to-scrape-using-servicemonitor-and-creating-a-provisioned-grafana-dashboard&#34;&gt;Configuring Prometheus to scrape using ServiceMonitor and creating a provisioned Grafana dashboard&lt;/h2&gt;
+
+
+&lt;div class=&#34;alert alert-primary&#34; role=&#34;alert&#34;&gt;
+&lt;h4 class=&#34;alert-heading&#34;&gt;Requirement:&lt;/h4&gt;
+
+    Configure Prometheus to scrape that endpoint using ServiceMonitor, and create a provisioned Grafana dashboard for the metric.
+
+&lt;/div&gt;
+
+&lt;p&gt;The main thing about configuring ServiceMonitor is &lt;a href=&#34;https://github.com/prometheus-operator/prometheus-operator/blob/main/Documentation/troubleshooting.md#troubleshooting-servicemonitor-changes&#34;&gt;matching&lt;/a&gt; the app name and labels in your mainfests
+&lt;img src=&#34;/static/img/SRE-DevOps-Challenge-Part-B/SRE-DevOps-Challenge-Part-B_2022-06-02-22-16-03.png&#34; alt=&#34;&#34;&gt;&lt;/p&gt;
+&lt;p&gt;So what we really need to configure Prometheus is the following files:&lt;/p&gt;
+&lt;p&gt;ServiceMonitor
+Service&lt;/p&gt;
+&lt;p&gt;That&amp;rsquo;s it. and another you want to do is again expose nodeport so we can access it from our workstation outside the cluster.&lt;/p&gt;
+&lt;p&gt;Next, we will create a provisioned Grafana dashboard, you can clicky click, but another way to do it is by &lt;a href=&#34;https://raw.githubusercontent.com/leokuan2021/Devops-Challenge/main/part-b/webhook-app-dashboard.yaml&#34;&gt;code&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;After we created the dashboard using the UI and exported it to json which we will name webhook-app-dashboard.json, we can create the configmap for it.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-fallback&#34; data-lang=&#34;fallback&#34;&gt;devops@k8s-master:~/part-b/webhook-app-dashboard$ k -n monitoring create configmap grafana-webhook-app --from-file=webhook-app-dashboard.json  --dry-run=client -o yaml &amp;gt; webhook-app-dashboard-configmap.yaml
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;We also need to add the grafana_dashboard label to it but kubectl doesn&amp;rsquo;t support the &amp;ndash;labels=&amp;quot;&amp;quot; flag for create &lt;a href=&#34;https://github.com/kubernetes/kubernetes/issues/60295&#34;&gt;configmap&lt;/a&gt;, there&amp;rsquo;s no clean way to generate the configmap yaml imperatively with a one-liner so we will have to add it in the yaml manually.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-fallback&#34; data-lang=&#34;fallback&#34;&gt;labels:
+  grafana_dashboard: &amp;#34;1&amp;#34;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;Alternatively, we can use another kubectl command to label the configmap&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-bash&#34; data-lang=&#34;bash&#34;&gt;kubectl -n monitoring label cm grafana-webhook-app &lt;span style=&#34;color:#000&#34;&gt;grafana_dashboard&lt;/span&gt;&lt;span style=&#34;color:#ce5c00;font-weight:bold&#34;&gt;=&lt;/span&gt;&lt;span style=&#34;color:#0000cf;font-weight:bold&#34;&gt;1&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;then run&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-bash&#34; data-lang=&#34;bash&#34;&gt;kubectl apply -f webhook-app-dashboard-configmap.yaml
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;and you will be able to find the webhook-app dashboard in the UI.&lt;/p&gt;
+&lt;h2 id=&#34;deploying-a-custom-metrics-adaptor-for-prometheus&#34;&gt;Deploying a custom metrics adaptor for Prometheus&lt;/h2&gt;
+&lt;p&gt;
+
+&lt;div class=&#34;alert alert-primary&#34; role=&#34;alert&#34;&gt;
+&lt;h4 class=&#34;alert-heading&#34;&gt;Requirement:&lt;/h4&gt;
+
+    Create another custom metric for your REST API that exposes a count of in-flight requests. Deploy a custom metrics adaptor for Prometheus, saving your k8s manifest(s) and/or chart     &lt;code&gt;values.yaml&lt;/code&gt;.
+
+&lt;/div&gt;
+
+let&amp;rsquo;s go back to the source code for the webhook-app and add the code for the in-flight counter.
+here&amp;rsquo;s the cdoe&lt;/p&gt;
+&lt;p&gt;Here&amp;rsquo;s how I test it. Since there&amp;rsquo;s no requirement for what kind of traffic we need to generate, one simple way we can test the in-flight counter is by spamming HTTP requests using curl.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-bash&#34; data-lang=&#34;bash&#34;&gt;xargs -I % -P &lt;span style=&#34;color:#0000cf;font-weight:bold&#34;&gt;20&lt;/span&gt; curl -X POST http://webhook-app.leokuan.info/ &amp;lt; &amp;lt;&lt;span style=&#34;color:#ce5c00;font-weight:bold&#34;&gt;(&lt;/span&gt;&lt;span style=&#34;color:#204a87&#34;&gt;printf&lt;/span&gt; &lt;span style=&#34;color:#4e9a06&#34;&gt;&amp;#39;%s\n&amp;#39;&lt;/span&gt; &lt;span style=&#34;color:#ce5c00;font-weight:bold&#34;&gt;{&lt;/span&gt;1..50000&lt;span style=&#34;color:#ce5c00;font-weight:bold&#34;&gt;})&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;You can increase the number of processes to further increase the queue length. This of course depends on your hardware and network spec so adjust as you need, we just need to push the server a little bit to make sure the code works as intended.
+Since we&amp;rsquo;re not actually doing anything with each request besides incrementing a counter, it&amp;rsquo;s very possible that no matter how many times requests you send the server can still keep up because we&amp;rsquo;re working with a gigabit local network there&amp;rsquo;s minimal latency. So what do we do? well we can simulate some using the tc command.&lt;/p&gt;
+&lt;p&gt;Let&amp;rsquo;s again deploy it following the same step above and try that once it&amp;rsquo;s running on our cluster.&lt;/p&gt;
+&lt;h2 id=&#34;adding-an-hpa-manifest-to-webhook-app&#34;&gt;Adding an HPA manifest to webhook-app&lt;/h2&gt;
+&lt;p&gt;
+
+&lt;div class=&#34;alert alert-primary&#34; role=&#34;alert&#34;&gt;
+&lt;h4 class=&#34;alert-heading&#34;&gt;Requirement:&lt;/h4&gt;
+
+    Add an HPA manifest to your REST API that’s sensitive to the custom metric from step 1.
+
+&lt;/div&gt;
+
+Finally, let&amp;rsquo;s add an HPA and make kubernetes handle the scaling automatically for us.&lt;/p&gt;
+&lt;p&gt;Let&amp;rsquo;s try the traffic again and watch the deployment scale. After ramping up the traffic to trigger scaling in testing, there will be a cooldown period you have to wait a few minutes for it to scale down on its own. If you want to do it manually you have to manually edit the config map to patch to set the replicas to 1.&lt;/p&gt;
+&lt;p&gt;For whatever reason when I generate traffic on my mac it gets connection refused when I ramp up traffic, and one interesting thing happens when it works. It doesn&amp;rsquo;t direct traffic to the other newly brought up replicas, the queue length is still long for the origianl while it&amp;rsquo;s at zero for the other replicas. Generating with another machine running Ubuntu did not cause any issue, weird right?&lt;/p&gt;
+&lt;p&gt;This behavior raises two good points, one is our scaling strategy, we naively thought that taking the average was a good way, but that also exposes one problem, what if load balancing doesn&amp;rsquo;t work?&lt;/p&gt;
+&lt;p&gt;Originally I had thought this had something to do with the default kubernetes load balancing algorithm ,so I looked into and even tried vssd (no keepalive) to see what&amp;rsquo;s wrong, but didn&amp;rsquo;t find anything. It was good though because I learned about vssd, and you should look into it too if that&amp;rsquo;s something that you might find useful.&lt;/p&gt;
+
+      </description>
+    </item>
+    
+  </channel>
+</rss>

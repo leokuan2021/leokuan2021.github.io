@@ -1,0 +1,824 @@
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+<meta name="generator" content="Hugo 0.92.2" />
+<meta name="robots" content="index, follow">
+
+
+<link rel="shortcut icon" href="/favicons/favicon.ico" >
+<link rel="apple-touch-icon" href="/favicons/apple-touch-icon-180x180.png" sizes="180x180">
+<link rel="icon" type="image/png" href="/favicons/favicon-16x16.png" sizes="16x16">
+<link rel="icon" type="image/png" href="/favicons/favicon-32x32.png" sizes="32x32">
+<link rel="icon" type="image/png" href="/favicons/android-36x36.png" sizes="36x36">
+<link rel="icon" type="image/png" href="/favicons/android-48x48.png" sizes="48x48">
+<link rel="icon" type="image/png" href="/favicons/android-72x72.png" sizes="72x72">
+<link rel="icon" type="image/png" href="/favicons/android-96x96.png" sizes="96x96">
+<link rel="icon" type="image/png" href="/favicons/android-144x144.png" sizes="144x144">
+<link rel="icon" type="image/png" href="/favicons/android-192x192.png" sizes="192x192">
+
+<title>DevOps Challenge Part B | Leo Kuan</title>
+
+
+  
+  <meta name="description" content="In part A of this challenge we deployed a REST API server app which sends a direct message to Rocket.chat triggered by a Gitlab commit event. In part …">
+<meta property="og:title" content="DevOps Challenge Part B" />
+<meta property="og:description" content="In part A of this challenge we deployed a REST API server app which sends a direct message to Rocket.chat triggered by a Gitlab commit event. In part B of this challenge we build on top of this app to provide some monitoring capabilities by exposing and scraping Prometheus metrics.
+Code: The repo for this project can be found here.  Deploying Prometheus and Grafana to a Kubernetes Cluster    Prerequisite Deliverable Requirement     Helm values." />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="/devops/sre-devops-challenge-part-b/" /><meta property="article:section" content="Devops" />
+<meta property="article:published_time" content="2022-03-06T14:19:02-10:00" />
+<meta property="article:modified_time" content="2022-03-06T14:19:02-10:00" /><meta property="og:site_name" content="Leo Kuan" />
+
+<meta itemprop="name" content="DevOps Challenge Part B">
+<meta itemprop="description" content="In part A of this challenge we deployed a REST API server app which sends a direct message to Rocket.chat triggered by a Gitlab commit event. In part B of this challenge we build on top of this app to provide some monitoring capabilities by exposing and scraping Prometheus metrics.
+Code: The repo for this project can be found here.  Deploying Prometheus and Grafana to a Kubernetes Cluster    Prerequisite Deliverable Requirement     Helm values."><meta itemprop="datePublished" content="2022-03-06T14:19:02-10:00" />
+<meta itemprop="dateModified" content="2022-03-06T14:19:02-10:00" />
+<meta itemprop="wordCount" content="2334">
+<meta itemprop="keywords" content="Kubernetes,Docker,CI/CD,Gitlab,REST API,Node.js,MongoDB,Helm,Prometheus,Grafana,HPA," /><meta name="twitter:card" content="summary"/>
+<meta name="twitter:title" content="DevOps Challenge Part B"/>
+<meta name="twitter:description" content="In part A of this challenge we deployed a REST API server app which sends a direct message to Rocket.chat triggered by a Gitlab commit event. In part B of this challenge we build on top of this app to provide some monitoring capabilities by exposing and scraping Prometheus metrics.
+Code: The repo for this project can be found here.  Deploying Prometheus and Grafana to a Kubernetes Cluster    Prerequisite Deliverable Requirement     Helm values."/>
+
+
+
+
+<link rel="preload" href="/scss/main.min.e38d7d98a5ee202cc020520cdfaa8c365dd6cf0cc1afe59c0a3154b04d2365ef.css" as="style">
+<link href="/scss/main.min.e38d7d98a5ee202cc020520cdfaa8c365dd6cf0cc1afe59c0a3154b04d2365ef.css" rel="stylesheet" integrity="">
+
+
+<script
+  src="https://code.jquery.com/jquery-3.5.1.min.js"
+  integrity="sha256-9/aliU8dGd2tb6OSsuzixeV4y/faTqgFtohetphbbj0="
+  crossorigin="anonymous"></script>
+
+<script
+  src="https://unpkg.com/lunr@2.3.8/lunr.min.js"
+  integrity="sha384-vRQ9bDyE0Wnu+lMfm57BlYLO0/XauFuKpVsZPs7KEDwYKktWi5+Kz3MP8++DFlRY"
+  crossorigin="anonymous"></script>
+
+
+
+
+
+
+
+<script type="application/javascript">
+var doNotTrack = false;
+if (!doNotTrack) {
+	window.ga=window.ga||function(){(ga.q=ga.q||[]).push(arguments)};ga.l=+new Date;
+	ga('create', 'UA-00000000-0', 'auto');
+	
+	ga('send', 'pageview');
+}
+</script>
+<script async src='https://www.google-analytics.com/analytics.js'></script>
+
+
+
+
+  </head>
+  <body class="td-page">
+    <header>
+      
+<nav class="js-navbar-scroll navbar navbar-expand navbar-dark flex-column flex-md-row td-navbar">
+        <a class="navbar-brand" href="/">
+		<span class="navbar-logo"><svg id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 500 500" style="enable-background:new 0 0 500 500"><g><path style="fill:#fff" d="M116.8525 421.9722c-5.7041.0-10.3442-4.3127-10.3442-9.6129V88.183c0-5.3002 4.6401-9.6117 10.3442-9.6117H320.858c3.0347.0 9.3959.5498 11.7506 2.6302l.3545.3442 58.905 63.2912c2.3101 2.491 2.9202 8.4928 2.9202 11.3184v256.2039c0 5.3002-4.6407 9.6129-10.3436 9.6129H116.8525z"/><g><g><g><path style="fill:#767676" d="M384.4445 423.2066H116.852c-6.3839.0-11.5786-4.8658-11.5786-10.8474V88.1831c0-5.9804 5.1947-10.8461 11.5786-10.8461h204.0062c.377.0 9.2786.0329 12.568 2.9389l.3947.3833 58.9508 63.337c3.2135 3.4652 3.2514 11.7924 3.2514 12.1593v256.2036C396.0231 418.3408 390.8284 423.2066 384.4445 423.2066zM116.5079 411.9189c.0848.0278.1999.0531.3441.0531h267.5925c.1442.0.2581-.0253.3441-.0531V156.1556c-.0076-.9033-.3593-3.7347-.7034-5.0037l-57.6527-61.9416c-1.4651-.3176-4.4533-.6389-5.5742-.6389H116.852c-.143.0-.2594.024-.3441.0531V411.9189zm267.4533-261.149zM327.0321 89.371v.0013V89.371z"/></g></g></g><g><g><path style="fill:#5b7fc0" d="M189.0874 210.1754l.0012-.0012c7.7751.0012 15.0295 4.1862 18.932 10.9234 1.9177 3.3159 2.9305 7.1011 2.9293 10.9378.0 5.8394-2.2733 11.3304-6.4032 15.4604-4.1288 4.1288-9.6186 6.4032-15.458 6.4032s-11.328-2.2733-15.458-6.4032-6.4032-9.6186-6.4056-15.4628c.0012-6.025 2.454-11.4897 6.4116-15.4473C177.5953 212.627 183.0601 210.1742 189.0874 210.1754zm7.993 21.8576c.0012-1.4042-.3687-2.7868-1.063-3.9887-1.4293-2.4684-4.0833-3.9995-6.9299-4.0019-4.4077.0024-7.993 3.5877-7.993 7.993.0 2.1356.832 4.1431 2.3427 5.6539 1.5083 1.5083 3.5159 2.3403 5.6503 2.3415 2.1356.0 4.1443-.8308 5.6539-2.3403S197.0816 234.1722 197.0804 232.033z"/><path style="opacity:.3;fill:#fff" d="M189.0898 210.176c7.7763.0 15.0283 4.1826 18.926 10.9151 1.9201 3.3136 2.9377 7.0988 2.9353 10.9462.0024 12.0643-9.8065 21.8636-21.8613 21.8613-12.0547.0024-21.8636-9.8066-21.8612-21.8613.0-6.0285 2.4516-11.4921 6.4116-15.452C177.5977 212.6276 183.0612 210.176 189.0898 210.176zm7.9941 21.8612c0-1.4078-.3711-2.7892-1.0702-3.9959-1.4269-2.466-4.0797-3.9983-6.924-3.9983-4.4005-.0048-7.9918 3.5817-7.9942 7.9942.0024 4.4077 3.5865 7.9918 7.9942 7.9942 2.2027.0 4.2018-.8978 5.6479-2.3439C196.1861 236.239 197.0839 234.2399 197.0839 232.0372z"/><g><defs><path id="SVGID_1_" d="M194.7376 237.6875c-1.4461 1.4461-3.4452 2.3439-5.6479 2.3439-4.4077-.0024-7.9918-3.5865-7.9942-7.9942.0024-4.4125 3.5937-7.999 7.9942-7.9942 2.8443.0 5.497 1.5323 6.924 3.9983.6991 1.2067 1.0702 2.5881 1.0702 3.9959C197.0839 234.2399 196.1861 236.239 194.7376 237.6875z"/></defs><clipPath id="SVGID_2_"><use xlink:href="#SVGID_1_" style="overflow:visible"/></clipPath><path style="clip-path:url(#SVGID_2_);fill:#fff" d="M190.0704 225.0237c-4.4005-.0048-7.9918 3.5817-7.9942 7.9942.0011 1.9546.7088 3.7452 1.8782 5.1354-1.7447-1.4674-2.8575-3.663-2.8588-6.116.0024-4.4125 3.5936-7.999 7.9942-7.9942 2.3802-1e-4 4.616 1.0833 6.1218 2.8788C193.7885 225.7247 191.9774 225.0237 190.0704 225.0237z"/><path style="opacity:.13;clip-path:url(#SVGID_2_);fill:#020202" d="M190.0704 225.0237c-4.4005-.0048-7.9918 3.5817-7.9942 7.9942.0011 1.9546.7088 3.7452 1.8782 5.1354-1.7447-1.4674-2.8575-3.663-2.8588-6.116.0024-4.4125 3.5936-7.999 7.9942-7.9942 2.3802-1e-4 4.616 1.0833 6.1218 2.8788C193.7885 225.7247 191.9774 225.0237 190.0704 225.0237z"/></g><g><defs><path id="SVGID_3_" d="M189.0898 210.176c7.7763.0 15.0283 4.1826 18.926 10.9151 1.9201 3.3136 2.9377 7.0988 2.9353 10.9462.0024 12.0643-9.8065 21.8636-21.8613 21.8613-12.0547.0024-21.8636-9.8066-21.8612-21.8613.0-6.0285 2.4516-11.4921 6.4116-15.452C177.5977 212.6276 183.0612 210.176 189.0898 210.176zm7.9941 21.8612c0-1.4078-.3711-2.7892-1.0702-3.9959-1.4269-2.466-4.0797-3.9983-6.924-3.9983-4.4005-.0048-7.9918 3.5817-7.9942 7.9942.0024 4.4077 3.5865 7.9918 7.9942 7.9942 2.2027.0 4.2018-.8978 5.6479-2.3439C196.1861 236.239 197.0839 234.2399 197.0839 232.0372z"/></defs><clipPath id="SVGID_4_"><use xlink:href="#SVGID_3_" style="overflow:visible"/></clipPath><path style="clip-path:url(#SVGID_4_);fill:#5b7fc0" d="M172.6595 215.6045c-3.96 3.96-6.4116 9.4235-6.4116 15.452-.0024 12.0547 9.8066 21.8636 21.8613 21.8612 12.0547.0024 21.8636-9.797 21.8613-21.8612.0024-3.8475-1.0151-7.6326-2.9353-10.9462-3.8977-6.7324-11.1497-10.9151-18.926-10.9151C182.0806 209.1953 176.6171 211.647 172.6595 215.6045z"/></g></g><rect x="198.8952" y="225.1043" style="fill:#5b7fc0" width="122.6266" height="13.8671"/></g><g><path style="fill:#d95140" d="M189.0874 155.7611l.0012-.0012c7.7751.0012 15.0295 4.1862 18.932 10.9234 1.9177 3.3159 2.9305 7.1011 2.9293 10.9378.0 5.8394-2.2733 11.3304-6.4032 15.4604-4.1288 4.1288-9.6186 6.4032-15.458 6.4032s-11.328-2.2733-15.458-6.4032-6.4032-9.6186-6.4056-15.4628c.0012-6.0249 2.454-11.4897 6.4116-15.4473C177.5953 158.2128 183.0601 155.7599 189.0874 155.7611zm7.993 21.8577c.0012-1.4042-.3687-2.7868-1.063-3.9887-1.4293-2.4684-4.0833-3.9995-6.9299-4.0019-4.4077.0024-7.993 3.5877-7.993 7.993.0 2.1356.832 4.1431 2.3427 5.6539 1.5083 1.5083 3.5159 2.3403 5.6503 2.3415 2.1356.0 4.1443-.8308 5.6539-2.3403C196.2508 181.7667 197.0816 179.758 197.0804 177.6188z"/><path style="opacity:.3;fill:#fff" d="M189.0898 155.7617c7.7763.0 15.0283 4.1826 18.926 10.9151 1.9201 3.3135 2.9377 7.0987 2.9353 10.9462.0024 12.0643-9.8065 21.8636-21.8613 21.8613-12.0547.0024-21.8636-9.8066-21.8612-21.8613.0-6.0285 2.4516-11.4921 6.4116-15.452C177.5977 158.2134 183.0612 155.7617 189.0898 155.7617zm7.9941 21.8613c0-1.4078-.3711-2.7892-1.0702-3.9959-1.4269-2.466-4.0797-3.9983-6.924-3.9983-4.4005-.0048-7.9918 3.5817-7.9942 7.9942.0024 4.4077 3.5865 7.9918 7.9942 7.9942 2.2027.0 4.2018-.8978 5.6479-2.3439C196.1861 181.8248 197.0839 179.8256 197.0839 177.623z"/><g><defs><path id="SVGID_5_" d="M194.7376 183.2733c-1.4461 1.4461-3.4452 2.3439-5.6479 2.3439-4.4077-.0024-7.9918-3.5865-7.9942-7.9942.0024-4.4125 3.5937-7.9989 7.9942-7.9942 2.8443.0 5.497 1.5323 6.924 3.9983.6991 1.2067 1.0702 2.5881 1.0702 3.9959C197.0839 179.8256 196.1861 181.8248 194.7376 183.2733z"/></defs><clipPath id="SVGID_6_"><use xlink:href="#SVGID_5_" style="overflow:visible"/></clipPath><path style="clip-path:url(#SVGID_6_);fill:#fff" d="M190.0704 170.6095c-4.4005-.0048-7.9918 3.5817-7.9942 7.9942.0011 1.9546.7088 3.7452 1.8782 5.1354-1.7447-1.4674-2.8575-3.663-2.8588-6.116.0024-4.4125 3.5936-7.999 7.9942-7.9942 2.3802-1e-4 4.616 1.0833 6.1218 2.8788C193.7885 171.3104 191.9774 170.6095 190.0704 170.6095z"/><path style="opacity:.13;clip-path:url(#SVGID_6_);fill:#020202" d="M190.0704 170.6095c-4.4005-.0048-7.9918 3.5817-7.9942 7.9942.0011 1.9546.7088 3.7452 1.8782 5.1354-1.7447-1.4674-2.8575-3.663-2.8588-6.116.0024-4.4125 3.5936-7.999 7.9942-7.9942 2.3802-1e-4 4.616 1.0833 6.1218 2.8788C193.7885 171.3104 191.9774 170.6095 190.0704 170.6095z"/></g><g><defs><path id="SVGID_7_" d="M189.0898 155.7617c7.7763.0 15.0283 4.1826 18.926 10.9151 1.9201 3.3135 2.9377 7.0987 2.9353 10.9462.0024 12.0643-9.8065 21.8636-21.8613 21.8613-12.0547.0024-21.8636-9.8066-21.8612-21.8613.0-6.0285 2.4516-11.4921 6.4116-15.452C177.5977 158.2134 183.0612 155.7617 189.0898 155.7617zm7.9941 21.8613c0-1.4078-.3711-2.7892-1.0702-3.9959-1.4269-2.466-4.0797-3.9983-6.924-3.9983-4.4005-.0048-7.9918 3.5817-7.9942 7.9942.0024 4.4077 3.5865 7.9918 7.9942 7.9942 2.2027.0 4.2018-.8978 5.6479-2.3439C196.1861 181.8248 197.0839 179.8256 197.0839 177.623z"/></defs><clipPath id="SVGID_8_"><use xlink:href="#SVGID_7_" style="overflow:visible"/></clipPath><path style="clip-path:url(#SVGID_8_);fill:#d95140" d="M172.6595 161.1903c-3.96 3.96-6.4116 9.4235-6.4116 15.452-.0024 12.0547 9.8066 21.8636 21.8613 21.8613 12.0547.0024 21.8636-9.797 21.8613-21.8613.0024-3.8474-1.0151-7.6326-2.9353-10.9462-3.8977-6.7324-11.1497-10.9151-18.926-10.9151C182.0806 154.7811 176.6171 157.2327 172.6595 161.1903z"/></g><rect x="198.8952" y="170.69" style="fill:#d95140" width="122.6266" height="13.8671"/></g><g><g><path style="fill:#56a55c" d="M189.5379 264.6147l.0012-.0012c7.7751.0012 15.0294 4.1862 18.932 10.9235 1.9177 3.3159 2.9305 7.1011 2.9293 10.9378.0 5.8394-2.2733 11.3304-6.4032 15.4604-4.1288 4.1288-9.6186 6.4032-15.458 6.4032-5.8394.0-11.3281-2.2733-15.458-6.4032-4.13-4.13-6.4032-9.6186-6.4056-15.4628.0012-6.0249 2.454-11.4897 6.4116-15.4472C178.0458 267.0663 183.5105 264.6135 189.5379 264.6147zm7.993 21.8576c.0012-1.4042-.3687-2.7868-1.063-3.9887-1.4293-2.4684-4.0833-3.9995-6.9299-4.0019-4.4077.0024-7.993 3.5877-7.993 7.993.0 2.1356.832 4.1431 2.3427 5.6538 1.5083 1.5083 3.5159 2.3403 5.6503 2.3415 2.1356.0 4.1443-.8308 5.6539-2.3403C196.7013 290.6202 197.5321 288.6115 197.5309 286.4723z"/><path style="opacity:.3;fill:#fff" d="M189.5403 264.6153c7.7763.0 15.0283 4.1826 18.926 10.9151 1.9201 3.3135 2.9377 7.0987 2.9353 10.9462.0024 12.0643-9.8065 21.8636-21.8613 21.8613-12.0547.0024-21.8636-9.8065-21.8612-21.8613.0-6.0285 2.4516-11.492 6.4116-15.452C178.0482 267.0669 183.5117 264.6153 189.5403 264.6153zm7.9941 21.8612c0-1.4078-.3711-2.7892-1.0702-3.9959-1.4269-2.466-4.0797-3.9983-6.924-3.9983-4.4005-.0048-7.9918 3.5817-7.9942 7.9941.0024 4.4077 3.5865 7.9918 7.9942 7.9942 2.2027.0 4.2018-.8978 5.6479-2.3439C196.6366 290.6783 197.5344 288.6792 197.5344 286.4765z"/><g><defs><path id="SVGID_9_" d="M195.1881 292.1268c-1.4461 1.4461-3.4452 2.3439-5.6479 2.3439-4.4077-.0024-7.9918-3.5865-7.9942-7.9942.0024-4.4125 3.5937-7.9989 7.9942-7.9941 2.8443.0 5.497 1.5323 6.924 3.9983.6991 1.2067 1.0702 2.5881 1.0702 3.9959C197.5344 288.6792 196.6366 290.6783 195.1881 292.1268z"/></defs><clipPath id="SVGID_10_"><use xlink:href="#SVGID_9_" style="overflow:visible"/></clipPath><path style="clip-path:url(#SVGID_10_);fill:#fff" d="M190.5209 279.463c-4.4005-.0048-7.9918 3.5817-7.9942 7.9941.0011 1.9547.7088 3.7452 1.8782 5.1354-1.7446-1.4674-2.8575-3.6631-2.8588-6.1161.0024-4.4125 3.5936-7.999 7.9942-7.9941 2.3802-1e-4 4.616 1.0833 6.1218 2.8788C194.239 280.164 192.4279 279.463 190.5209 279.463z"/><path style="opacity:.13;clip-path:url(#SVGID_10_);fill:#020202" d="M190.5209 279.463c-4.4005-.0048-7.9918 3.5817-7.9942 7.9941.0011 1.9547.7088 3.7452 1.8782 5.1354-1.7446-1.4674-2.8575-3.6631-2.8588-6.1161.0024-4.4125 3.5936-7.999 7.9942-7.9941 2.3802-1e-4 4.616 1.0833 6.1218 2.8788C194.239 280.164 192.4279 279.463 190.5209 279.463z"/></g><g><defs><path id="SVGID_11_" d="M189.5403 264.6153c7.7763.0 15.0283 4.1826 18.926 10.9151 1.9201 3.3135 2.9377 7.0987 2.9353 10.9462.0024 12.0643-9.8065 21.8636-21.8613 21.8613-12.0547.0024-21.8636-9.8065-21.8612-21.8613.0-6.0285 2.4516-11.492 6.4116-15.452C178.0482 267.0669 183.5117 264.6153 189.5403 264.6153zm7.9941 21.8612c0-1.4078-.3711-2.7892-1.0702-3.9959-1.4269-2.466-4.0797-3.9983-6.924-3.9983-4.4005-.0048-7.9918 3.5817-7.9942 7.9941.0024 4.4077 3.5865 7.9918 7.9942 7.9942 2.2027.0 4.2018-.8978 5.6479-2.3439C196.6366 290.6783 197.5344 288.6792 197.5344 286.4765z"/></defs><clipPath id="SVGID_12_"><use xlink:href="#SVGID_11_" style="overflow:visible"/></clipPath><path style="clip-path:url(#SVGID_12_);fill:#56a55c" d="M173.11 270.0439c-3.96 3.96-6.4116 9.4235-6.4116 15.452-.0024 12.0547 9.8066 21.8636 21.8613 21.8613 12.0547.0024 21.8636-9.797 21.8613-21.8613.0024-3.8474-1.0151-7.6326-2.9353-10.9462-3.8977-6.7325-11.1497-10.9151-18.926-10.9151C182.5311 263.6346 177.0676 266.0863 173.11 270.0439z"/></g></g><rect x="199.3456" y="279.5436" style="fill:#56a55c" width="122.6266" height="13.8671"/></g><g><g><path style="fill:#f1bc42" d="M189.0874 318.7208l.0012-.0012c7.7751.0012 15.0295 4.1862 18.932 10.9234 1.9177 3.3159 2.9305 7.1011 2.9293 10.9378.0 5.8394-2.2733 11.3305-6.4032 15.4604-4.1288 4.1288-9.6186 6.4032-15.458 6.4032s-11.328-2.2733-15.458-6.4032-6.4032-9.6186-6.4056-15.4628c.0012-6.025 2.454-11.4897 6.4116-15.4472C177.5953 321.1724 183.0601 318.7196 189.0874 318.7208zm7.993 21.8576c.0012-1.4042-.3687-2.7868-1.063-3.9887-1.4293-2.4684-4.0833-3.9995-6.9299-4.0019-4.4077.0024-7.993 3.5877-7.993 7.993.0 2.1356.832 4.1431 2.3427 5.6539 1.5083 1.5083 3.5159 2.3403 5.6503 2.3415 2.1356.0 4.1443-.8308 5.6539-2.3403S197.0816 342.7176 197.0804 340.5784z"/><path style="opacity:.3;fill:#fff" d="M189.0898 318.7214c7.7763.0 15.0283 4.1826 18.926 10.915 1.9201 3.3136 2.9377 7.0988 2.9353 10.9462.0024 12.0643-9.8065 21.8636-21.8613 21.8612-12.0547.0024-21.8636-9.8065-21.8612-21.8612.0-6.0285 2.4516-11.4921 6.4116-15.452C177.5977 321.173 183.0612 318.7214 189.0898 318.7214zm7.9941 21.8612c0-1.4078-.3711-2.7892-1.0702-3.9959-1.4269-2.466-4.0797-3.9983-6.924-3.9983-4.4005-.0048-7.9918 3.5817-7.9942 7.9942.0024 4.4077 3.5865 7.9918 7.9942 7.9942 2.2027.0 4.2018-.8978 5.6479-2.3439C196.1861 344.7844 197.0839 342.7853 197.0839 340.5826z"/><g><defs><path id="SVGID_13_" d="M194.7376 346.2329c-1.4461 1.4461-3.4452 2.3439-5.6479 2.3439-4.4077-.0024-7.9918-3.5865-7.9942-7.9942.0024-4.4125 3.5937-7.999 7.9942-7.9942 2.8443.0 5.497 1.5323 6.924 3.9983.6991 1.2067 1.0702 2.5881 1.0702 3.9959C197.0839 342.7853 196.1861 344.7844 194.7376 346.2329z"/></defs><clipPath id="SVGID_14_"><use xlink:href="#SVGID_13_" style="overflow:visible"/></clipPath><path style="clip-path:url(#SVGID_14_);fill:#fff" d="M190.0704 333.5691c-4.4005-.0048-7.9918 3.5817-7.9942 7.9942.0011 1.9547.7088 3.7452 1.8782 5.1354-1.7447-1.4674-2.8575-3.6631-2.8588-6.1161.0024-4.4125 3.5936-7.999 7.9942-7.9942 2.3802-1e-4 4.616 1.0834 6.1218 2.8788C193.7885 334.2701 191.9774 333.5691 190.0704 333.5691z"/><path style="opacity:.13;clip-path:url(#SVGID_14_);fill:#020202" d="M190.0704 333.5691c-4.4005-.0048-7.9918 3.5817-7.9942 7.9942.0011 1.9547.7088 3.7452 1.8782 5.1354-1.7447-1.4674-2.8575-3.6631-2.8588-6.1161.0024-4.4125 3.5936-7.999 7.9942-7.9942 2.3802-1e-4 4.616 1.0834 6.1218 2.8788C193.7885 334.2701 191.9774 333.5691 190.0704 333.5691z"/></g><g><defs><path id="SVGID_15_" d="M189.0898 318.7214c7.7763.0 15.0283 4.1826 18.926 10.915 1.9201 3.3136 2.9377 7.0988 2.9353 10.9462.0024 12.0643-9.8065 21.8636-21.8613 21.8612-12.0547.0024-21.8636-9.8065-21.8612-21.8612.0-6.0285 2.4516-11.4921 6.4116-15.452C177.5977 321.173 183.0612 318.7214 189.0898 318.7214zm7.9941 21.8612c0-1.4078-.3711-2.7892-1.0702-3.9959-1.4269-2.466-4.0797-3.9983-6.924-3.9983-4.4005-.0048-7.9918 3.5817-7.9942 7.9942.0024 4.4077 3.5865 7.9918 7.9942 7.9942 2.2027.0 4.2018-.8978 5.6479-2.3439C196.1861 344.7844 197.0839 342.7853 197.0839 340.5826z"/></defs><clipPath id="SVGID_16_"><use xlink:href="#SVGID_15_" style="overflow:visible"/></clipPath><path style="clip-path:url(#SVGID_16_);fill:#f1bc42" d="M172.6595 324.15c-3.96 3.96-6.4116 9.4235-6.4116 15.452-.0024 12.0547 9.8066 21.8636 21.8613 21.8612 12.0547.0024 21.8636-9.797 21.8613-21.8612.0024-3.8474-1.0151-7.6327-2.9353-10.9462-3.8977-6.7324-11.1497-10.9151-18.926-10.9151C182.0806 317.7407 176.6171 320.1924 172.6595 324.15z"/></g></g><rect x="198.8952" y="333.6497" style="fill:#f1bc42" width="122.6266" height="13.8671"/></g></g></svg></span><span class="text-uppercase font-weight-bold">Leo Kuan</span>
+	</a>
+	<div class="td-navbar-nav-scroll ml-md-auto" id="main_navbar">
+		<ul class="navbar-nav mt-2 mt-lg-0">
+			
+			
+			<li class="nav-item mr-4 mb-2 mb-lg-0">
+				
+				
+				
+				
+				
+				
+				
+				
+				<a class="nav-link" href="/blog/" ><span>My Resume</span></a>
+			</li>
+			
+			
+			
+		</ul>
+	</div>
+	<div class="navbar-nav d-none d-lg-block"><input
+  type="search"
+  class="form-control td-search-input"
+  placeholder="&#xf002; Search this site…"
+  aria-label="Search this site…"
+  autocomplete="off"
+  
+  data-offline-search-index-json-src="/offline-search-index.c65185e911a156f99154984e03c8dfee.json"
+  data-offline-search-base-href="/"
+  data-offline-search-max-results="10"
+>
+</div>
+</nav>
+
+    </header>
+    <div class="container-fluid td-outer">
+      <div class="td-main">
+        <div class="row flex-xl-nowrap">
+          <aside class="col-12 col-md-3 col-xl-2 td-sidebar d-print-none">
+            
+<div id="td-sidebar-menu" class="td-sidebar__inner">
+  <form class="td-sidebar__search d-flex align-items-center">
+    <input
+  type="search"
+  class="form-control td-search-input"
+  placeholder="&#xf002; Search this site…"
+  aria-label="Search this site…"
+  autocomplete="off"
+  
+  data-offline-search-index-json-src="/offline-search-index.c65185e911a156f99154984e03c8dfee.json"
+  data-offline-search-base-href="/"
+  data-offline-search-max-results="10"
+>
+
+    <button class="btn btn-link td-sidebar__toggle d-md-none p-0 ml-3 fas fa-bars" type="button" data-toggle="collapse" data-target="#td-section-nav" aria-controls="td-docs-nav" aria-expanded="false" aria-label="Toggle section navigation">
+    </button>
+  </form>
+  <nav class="collapse td-sidebar-nav" id="td-section-nav">
+    <ul class="td-sidebar-nav__section pr-md-3 ul-0">
+      <li class="td-sidebar-nav__section-title td-sidebar-nav__section with-child active-path" id="m--li">
+  <a href="/" title="Mostly Technical Things That Don&#39;t Fit in The Resume" class="align-left pl-0 td-sidebar-link td-sidebar-link__section tree-root" id="m-"><span class="">Technical Things</span></a>
+  <ul class="ul-1">
+    <li class="td-sidebar-nav__section-title td-sidebar-nav__section with-child active-path" id="m-devops-li">
+  <a href="/devops/" title="DevOps Challenge" class="align-left pl-0 td-sidebar-link td-sidebar-link__section" id="m-devops"><span class="">DevOps</span></a>
+  <ul class="ul-2 foldable">
+    <li class="td-sidebar-nav__section-title td-sidebar-nav__section without-child" id="m-devopssre-devops-challenge-part-a-li">
+  <a href="/devops/sre-devops-challenge-part-a/" title="DevOps Challenge Part A" class="align-left pl-0 td-sidebar-link td-sidebar-link__page" id="m-devopssre-devops-challenge-part-a"><span class="">Devops Challenge - A</span></a>
+</li><li class="td-sidebar-nav__section-title td-sidebar-nav__section without-child active-path" id="m-devopssre-devops-challenge-part-b-li">
+  <a href="/devops/sre-devops-challenge-part-b/" title="DevOps Challenge Part B" class="align-left pl-0 active td-sidebar-link td-sidebar-link__page" id="m-devopssre-devops-challenge-part-b"><span class="td-sidebar-nav-active-item">Devops Challenge - B</span></a>
+</li>
+  </ul>
+</li><li class="td-sidebar-nav__section-title td-sidebar-nav__section with-child" id="m-iac-li">
+  <a href="/iac/" title="Infrastructure as Code" class="align-left pl-0 td-sidebar-link td-sidebar-link__section" id="m-iac"><span class="">IaC</span></a>
+  <ul class="ul-2 foldable">
+    <li class="td-sidebar-nav__section-title td-sidebar-nav__section without-child" id="m-iacprovision-k8s-cluster-li">
+  <a href="/iac/provision-k8s-cluster/" title="Provision a 3-Node K8S Cluster in Proxmox Using Terraform and Ansible" class="align-left pl-0 td-sidebar-link td-sidebar-link__page" id="m-iacprovision-k8s-cluster"><span class="">Provisioning K8s Cluster</span></a>
+</li><li class="td-sidebar-nav__section-title td-sidebar-nav__section without-child" id="m-iacproduction-grade-iac-li">
+  <a href="/iac/production-grade-iac/" title="Production Grade IaC Examples" class="align-left pl-0 td-sidebar-link td-sidebar-link__page" id="m-iacproduction-grade-iac"><span class="">Production-Grade IaC</span></a>
+</li>
+  </ul>
+</li><li class="td-sidebar-nav__section-title td-sidebar-nav__section with-child" id="m-miscellaneous-li">
+  <a href="/miscellaneous/" class="align-left pl-0 td-sidebar-link td-sidebar-link__section" id="m-miscellaneous"><span class="">Miscellaneous</span></a>
+  <ul class="ul-2 foldable">
+    <li class="td-sidebar-nav__section-title td-sidebar-nav__section without-child" id="m-miscellaneoushp-p1006-docker-li">
+  <a href="/miscellaneous/hp-p1006-docker/" title="Running a CUPS Print Server on Synology NAS for My Old USB HP P1006 Laser Printer Using Docker" class="align-left pl-0 td-sidebar-link td-sidebar-link__page" id="m-miscellaneoushp-p1006-docker"><span class="">Containerized CUPS on Synology NAS</span></a>
+</li><li class="td-sidebar-nav__section-title td-sidebar-nav__section without-child" id="m-miscellaneousbid-result-scraper-li">
+  <a href="/miscellaneous/bid-result-scraper/" class="align-left pl-0 td-sidebar-link td-sidebar-link__page" id="m-miscellaneousbid-result-scraper"><span class="">Construction Bid Result Scraper</span></a>
+</li><li class="td-sidebar-nav__section-title td-sidebar-nav__section without-child" id="m-miscellaneousonigoe-clone-li">
+  <a href="/miscellaneous/onigoe-clone/" title="Onigoe Clone - A Reaction Trainer for Sports Using a Microcontroller" class="align-left pl-0 td-sidebar-link td-sidebar-link__page" id="m-miscellaneousonigoe-clone"><span class="">Reaction Trainer</span></a>
+</li>
+  </ul>
+</li>
+  </ul>
+</li>
+    </ul>
+  </nav>
+</div>
+
+          </aside>
+          <aside class="d-none d-xl-block col-xl-2 td-sidebar-toc d-print-none">
+            
+<div class="td-page-meta ml-2 pb-1 pt-2 mb-0">
+<a href="https://github.com/gwatts/mostlydocs/tree/main/content/en/Devops/SRE-DevOps-Challenge-Part-B.md" class="td-page-meta--view" target="_blank" rel="noopener"><i class="fa fa-file-alt fa-fw"></i> View page source</a>
+  <a href="https://github.com/gwatts/mostlydocs/edit/main/content/en/Devops/SRE-DevOps-Challenge-Part-B.md" class="td-page-meta--edit" target="_blank" rel="noopener"><i class="fa fa-edit fa-fw"></i> Edit this page</a>
+  <a href="https://github.com/gwatts/mostlydocs/new/main/content/en/Devops/SRE-DevOps-Challenge-Part-B.md?filename=change-me.md&amp;value=---%0Atitle%3A&#43;%22Long&#43;Page&#43;Title%22%0AlinkTitle%3A&#43;%22Short&#43;Nav&#43;Title%22%0Aweight%3A&#43;100%0Adescription%3A&#43;%3E-%0A&#43;&#43;&#43;&#43;&#43;Page&#43;description&#43;for&#43;heading&#43;and&#43;indexes.%0A---%0A%0A%23%23&#43;Heading%0A%0AEdit&#43;this&#43;template&#43;to&#43;create&#43;your&#43;new&#43;page.%0A%0A%2A&#43;Give&#43;it&#43;a&#43;good&#43;name%2C&#43;ending&#43;in&#43;%60.md%60&#43;-&#43;e.g.&#43;%60getting-started.md%60%0A%2A&#43;Edit&#43;the&#43;%22front&#43;matter%22&#43;section&#43;at&#43;the&#43;top&#43;of&#43;the&#43;page&#43;%28weight&#43;controls&#43;how&#43;its&#43;ordered&#43;amongst&#43;other&#43;pages&#43;in&#43;the&#43;same&#43;directory%3B&#43;lowest&#43;number&#43;first%29.%0A%2A&#43;Add&#43;a&#43;good&#43;commit&#43;message&#43;at&#43;the&#43;bottom&#43;of&#43;the&#43;page&#43;%28%3C80&#43;characters%3B&#43;use&#43;the&#43;extended&#43;description&#43;field&#43;for&#43;more&#43;detail%29.%0A%2A&#43;Create&#43;a&#43;new&#43;branch&#43;so&#43;you&#43;can&#43;preview&#43;your&#43;new&#43;file&#43;and&#43;request&#43;a&#43;review&#43;via&#43;Pull&#43;Request.%0A" class="td-page-meta--child" target="_blank" rel="noopener"><i class="fa fa-edit fa-fw"></i> Create child page</a>
+  <a href="https://github.com/gwatts/mostlydocs/issues/new?title=DevOps%20Challenge%20Part%20B" class="td-page-meta--issue" target="_blank" rel="noopener"><i class="fab fa-github fa-fw"></i> Create documentation issue</a>
+  <a href="https://github.com/google/docsy/issues/new" class="td-page-meta--project-issue" target="_blank" rel="noopener"><i class="fas fa-tasks fa-fw"></i> Create project issue</a>
+  
+</div>
+
+            
+
+
+<div class="td-toc"><nav id="TableOfContents">
+  <ul>
+    <li><a href="#deploying-prometheus-and-grafana-to-a-kubernetes-cluster">Deploying Prometheus and Grafana to a Kubernetes Cluster</a></li>
+    <li><a href="#adding-a-prometheus-metrics-endpoint-to-webhook-app">Adding a Prometheus metrics endpoint to webhook-app</a></li>
+    <li><a href="#configuring-prometheus-to-scrape-using-servicemonitor-and-creating-a-provisioned-grafana-dashboard">Configuring Prometheus to scrape using ServiceMonitor and creating a provisioned Grafana dashboard</a></li>
+    <li><a href="#deploying-a-custom-metrics-adaptor-for-prometheus">Deploying a custom metrics adaptor for Prometheus</a></li>
+    <li><a href="#adding-an-hpa-manifest-to-webhook-app">Adding an HPA manifest to webhook-app</a></li>
+  </ul>
+</nav></div>
+
+
+
+            
+
+	
+		
+			
+		
+		
+
+
+
+  
+  
+    <div class="taxonomy taxonomy-terms-cloud taxo-tags">
+      
+        <h5 class="taxonomy-title">Tags</h5>
+      
+      <ul class="taxonomy-terms">
+        
+          <li><a class="taxonomy-term" href="/tags/ansible/" data-taxonomy-term="ansible"><span class="taxonomy-label">Ansible</span><span class="taxonomy-count">1</span></a></li>
+        
+          <li><a class="taxonomy-term" href="/tags/business-development/" data-taxonomy-term="business-development"><span class="taxonomy-label">Business Development</span><span class="taxonomy-count">1</span></a></li>
+        
+          <li><a class="taxonomy-term" href="/tags/c/c&#43;&#43;/" data-taxonomy-term="c/c&#43;&#43;"><span class="taxonomy-label">C/C&#43;&#43;</span><span class="taxonomy-count">1</span></a></li>
+        
+          <li><a class="taxonomy-term" href="/tags/ci/cd/" data-taxonomy-term="ci/cd"><span class="taxonomy-label">CI/CD</span><span class="taxonomy-count">3</span></a></li>
+        
+          <li><a class="taxonomy-term" href="/tags/circuits/" data-taxonomy-term="circuits"><span class="taxonomy-label">Circuits</span><span class="taxonomy-count">1</span></a></li>
+        
+          <li><a class="taxonomy-term" href="/tags/communication/" data-taxonomy-term="communication"><span class="taxonomy-label">Communication</span><span class="taxonomy-count">1</span></a></li>
+        
+          <li><a class="taxonomy-term" href="/tags/contract-negotiation/" data-taxonomy-term="contract-negotiation"><span class="taxonomy-label">Contract Negotiation</span><span class="taxonomy-count">1</span></a></li>
+        
+          <li><a class="taxonomy-term" href="/tags/css/" data-taxonomy-term="css"><span class="taxonomy-label">CSS</span><span class="taxonomy-count">1</span></a></li>
+        
+          <li><a class="taxonomy-term" href="/tags/cups/" data-taxonomy-term="cups"><span class="taxonomy-label">CUPS</span><span class="taxonomy-count">1</span></a></li>
+        
+          <li><a class="taxonomy-term" href="/tags/docker/" data-taxonomy-term="docker"><span class="taxonomy-label">Docker</span><span class="taxonomy-count">4</span></a></li>
+        
+          <li><a class="taxonomy-term" href="/tags/gitlab/" data-taxonomy-term="gitlab"><span class="taxonomy-label">Gitlab</span><span class="taxonomy-count">3</span></a></li>
+        
+          <li><a class="taxonomy-term" href="/tags/grafana/" data-taxonomy-term="grafana"><span class="taxonomy-label">Grafana</span><span class="taxonomy-count">3</span></a></li>
+        
+          <li><a class="taxonomy-term" href="/tags/helm/" data-taxonomy-term="helm"><span class="taxonomy-label">Helm</span><span class="taxonomy-count">3</span></a></li>
+        
+          <li><a class="taxonomy-term" href="/tags/hpa/" data-taxonomy-term="hpa"><span class="taxonomy-label">HPA</span><span class="taxonomy-count">3</span></a></li>
+        
+          <li><a class="taxonomy-term" href="/tags/html/" data-taxonomy-term="html"><span class="taxonomy-label">HTML</span><span class="taxonomy-count">1</span></a></li>
+        
+          <li><a class="taxonomy-term" href="/tags/iac/" data-taxonomy-term="iac"><span class="taxonomy-label">IaC</span><span class="taxonomy-count">3</span></a></li>
+        
+          <li><a class="taxonomy-term" href="/tags/intro/" data-taxonomy-term="intro"><span class="taxonomy-label">intro</span><span class="taxonomy-count">1</span></a></li>
+        
+          <li><a class="taxonomy-term" href="/tags/kubernetes/" data-taxonomy-term="kubernetes"><span class="taxonomy-label">Kubernetes</span><span class="taxonomy-count">4</span></a></li>
+        
+          <li><a class="taxonomy-term" href="/tags/leadership/" data-taxonomy-term="leadership"><span class="taxonomy-label">Leadership</span><span class="taxonomy-count">1</span></a></li>
+        
+          <li><a class="taxonomy-term" href="/tags/learning/" data-taxonomy-term="learning"><span class="taxonomy-label">Learning</span><span class="taxonomy-count">1</span></a></li>
+        
+          <li><a class="taxonomy-term" href="/tags/linux/" data-taxonomy-term="linux"><span class="taxonomy-label">Linux</span><span class="taxonomy-count">1</span></a></li>
+        
+          <li><a class="taxonomy-term" href="/tags/microcontroller/" data-taxonomy-term="microcontroller"><span class="taxonomy-label">Microcontroller</span><span class="taxonomy-count">1</span></a></li>
+        
+          <li><a class="taxonomy-term" href="/tags/mongodb/" data-taxonomy-term="mongodb"><span class="taxonomy-label">MongoDB</span><span class="taxonomy-count">3</span></a></li>
+        
+          <li><a class="taxonomy-term" href="/tags/node.js/" data-taxonomy-term="node.js"><span class="taxonomy-label">Node.js</span><span class="taxonomy-count">3</span></a></li>
+        
+          <li><a class="taxonomy-term" href="/tags/pcb-layout/" data-taxonomy-term="pcb-layout"><span class="taxonomy-label">PCB Layout</span><span class="taxonomy-count">1</span></a></li>
+        
+          <li><a class="taxonomy-term" href="/tags/product-design/" data-taxonomy-term="product-design"><span class="taxonomy-label">Product Design</span><span class="taxonomy-count">1</span></a></li>
+        
+          <li><a class="taxonomy-term" href="/tags/project-management/" data-taxonomy-term="project-management"><span class="taxonomy-label">Project Management</span><span class="taxonomy-count">1</span></a></li>
+        
+          <li><a class="taxonomy-term" href="/tags/prometheus/" data-taxonomy-term="prometheus"><span class="taxonomy-label">Prometheus</span><span class="taxonomy-count">3</span></a></li>
+        
+          <li><a class="taxonomy-term" href="/tags/proxmox/" data-taxonomy-term="proxmox"><span class="taxonomy-label">Proxmox</span><span class="taxonomy-count">1</span></a></li>
+        
+          <li><a class="taxonomy-term" href="/tags/python/" data-taxonomy-term="python"><span class="taxonomy-label">Python</span><span class="taxonomy-count">1</span></a></li>
+        
+          <li><a class="taxonomy-term" href="/tags/rapid-prototyping/" data-taxonomy-term="rapid-prototyping"><span class="taxonomy-label">Rapid Prototyping</span><span class="taxonomy-count">1</span></a></li>
+        
+          <li><a class="taxonomy-term" href="/tags/rest-api/" data-taxonomy-term="rest-api"><span class="taxonomy-label">REST API</span><span class="taxonomy-count">3</span></a></li>
+        
+          <li><a class="taxonomy-term" href="/tags/scrapy/" data-taxonomy-term="scrapy"><span class="taxonomy-label">Scrapy</span><span class="taxonomy-count">1</span></a></li>
+        
+          <li><a class="taxonomy-term" href="/tags/terraform/" data-taxonomy-term="terraform"><span class="taxonomy-label">Terraform</span><span class="taxonomy-count">1</span></a></li>
+        
+      </ul>
+    </div>
+  
+
+	
+
+          </aside>
+          <main class="col-12 col-md-9 col-xl-8 pl-md-5" role="main">
+            
+  
+
+            <nav aria-label="breadcrumb" class="d-none d-md-block d-print-none">
+	<ol class="breadcrumb spb-1">
+		
+
+
+
+
+
+
+
+<li class="breadcrumb-item" >
+	<a href="/devops/">DevOps</a>
+</li>
+
+
+
+
+<li class="breadcrumb-item active" aria-current="page">
+	<a href="/devops/sre-devops-challenge-part-b/">Devops Challenge - B</a>
+</li>
+
+	</ol>
+</nav	>
+
+            
+<div class="td-content">
+	<h1>DevOps Challenge Part B</h1>
+	
+	<header class="article-meta">
+		
+		
+			
+				
+
+
+			
+				
+
+
+<div class="taxonomy taxonomy-terms-article taxo-tags">
+  <h5 class="taxonomy-title">Tags:</h5>
+  <ul class="taxonomy-terms">
+    
+      <li><a class="taxonomy-term" href="/tags/kubernetes/" data-taxonomy-term="kubernetes"><span class="taxonomy-label">Kubernetes</span></a></li>
+    
+      <li><a class="taxonomy-term" href="/tags/docker/" data-taxonomy-term="docker"><span class="taxonomy-label">Docker</span></a></li>
+    
+      <li><a class="taxonomy-term" href="/tags/ci/cd/" data-taxonomy-term="ci/cd"><span class="taxonomy-label">CI/CD</span></a></li>
+    
+      <li><a class="taxonomy-term" href="/tags/gitlab/" data-taxonomy-term="gitlab"><span class="taxonomy-label">Gitlab</span></a></li>
+    
+      <li><a class="taxonomy-term" href="/tags/rest-api/" data-taxonomy-term="rest-api"><span class="taxonomy-label">REST API</span></a></li>
+    
+      <li><a class="taxonomy-term" href="/tags/node.js/" data-taxonomy-term="node.js"><span class="taxonomy-label">Node.js</span></a></li>
+    
+      <li><a class="taxonomy-term" href="/tags/mongodb/" data-taxonomy-term="mongodb"><span class="taxonomy-label">MongoDB</span></a></li>
+    
+      <li><a class="taxonomy-term" href="/tags/helm/" data-taxonomy-term="helm"><span class="taxonomy-label">Helm</span></a></li>
+    
+      <li><a class="taxonomy-term" href="/tags/prometheus/" data-taxonomy-term="prometheus"><span class="taxonomy-label">Prometheus</span></a></li>
+    
+      <li><a class="taxonomy-term" href="/tags/grafana/" data-taxonomy-term="grafana"><span class="taxonomy-label">Grafana</span></a></li>
+    
+      <li><a class="taxonomy-term" href="/tags/hpa/" data-taxonomy-term="hpa"><span class="taxonomy-label">HPA</span></a></li>
+    
+  </ul>
+</div>
+
+			
+		
+		
+	</header>    
+	<p>In part A of this challenge we deployed a REST API server app which sends a direct message to Rocket.chat triggered by a Gitlab commit event. In part B of this challenge we build on top of this app to provide some monitoring capabilities by exposing and scraping Prometheus metrics.</p>
+
+
+<div class="alert alert-info" role="alert">
+<h4 class="alert-heading">Code:</h4>
+
+    The repo for this project can be found <a href="https://github.com/leokuan2021/Devops-Challenge.git">here</a>.
+
+</div>
+
+<h2 id="deploying-prometheus-and-grafana-to-a-kubernetes-cluster">Deploying Prometheus and Grafana to a Kubernetes Cluster</h2>
+<table>
+<thead>
+<tr>
+<th>Prerequisite</th>
+<th>Deliverable</th>
+<th>Requirement</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Helm</td>
+<td><code>values.yaml</code></td>
+<td>Deploy Prometheus and Grafana to your k8s cluster using the kube-prometheus-stack Helm chart</td>
+</tr>
+</tbody>
+</table>
+<p>There are many ways to deploy Prometheus to a Kubernetes cluster but using the kube-prometheus-stack Helm chart as required here is arguably the most straightforward way to accomplish it. The community-maintained chart can be found <a href="https://github.com/prometheus-community/helm-charts/tree/main/charts/kube-prometheus-stack">here</a>.</p>
+<p>First let&rsquo;s add the repo:</p>
+<div class="highlight"><pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-bash" data-lang="bash">helm repo add prometheus-community https://prometheus-community.github.io/helm-charts <span style="color:#ce5c00;font-weight:bold">&amp;&amp;</span> helm repo update
+</code></pre></div><p>
+
+<div class="alert alert-primary" role="alert">
+<h4 class="alert-heading">Tip</h4>
+
+    <p>The kube-prometheus-stack helm chart&rsquo;s values file is quite large at 2000+ lines, and if you&rsquo;re working in the terminal in Vim like I was you might want to set <code>foldmethod=indent</code>then use <kbd>z</kbd><kbd>a</kbd>, <kbd>z</kbd><kbd>o</kbd>, and <kbd>z</kbd><kbd>c</kbd> to interact with your folds and make it a bit easier to navigate, but firing up VScode is just as easy; whatever floats your boat.</p>
+<p>What I recommend for quick edits like this is save the default values.yaml for reference later if needed, make a copy, edit it, then do a vimdiff or colordiff to make sure the changes made are as intended before moving on to the next step.</p>
+
+
+</div>
+
+Save the chart&rsquo;s default values to <code>prometheus-grafana-values-default.yaml</code>:</p>
+<div class="highlight"><pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-bash" data-lang="bash">helm show values prometheus-community/kube-prometheus-stack &gt; prometheus-grafana-values-default.yaml
+</code></pre></div><p>Make a copy then we will go ahead and make some changes to <code>prometheus-grafana-values.yaml</code>:</p>
+<div class="highlight"><pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-bash" data-lang="bash">cp  prometheus-grafana-values.yaml prometheus-grafana-values.yaml
+</code></pre></div><div class="highlight"><pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-bash" data-lang="bash">vim prometheus-grafana-values.yaml
+</code></pre></div><p>One could use ephemeral storage for testing out Prometheus and Grafana quickly but it&rsquo;s probably not what you want for actual operations. Even though there&rsquo;s no requirement for persistent storage in the instructions I decided to set it up anyway.</p>
+<p>For this particular exercise we will focus on these three things:</p>
+<ol>
+<li>Persist Prometheus</li>
+<li>Persist Grafana</li>
+<li>Add ingress to Grafana</li>
+</ol>
+<p>Configure persistent storage for Prometheus in our <code>prometheus-grafana-values.yaml</code> file:</p>
+<div class="highlight"><pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-diff" data-lang="diff">     ## Prometheus StorageSpec for persistent data
+     ## ref: https://github.com/prometheus-operator/prometheus-operator/blob/main/Documentation/user-guides/storage.md
+     ##
+<span style="color:#a40000">-    storageSpec: {}
+</span><span style="color:#a40000"></span><span style="color:#00a000">+    storageSpec:
+</span><span style="color:#00a000"></span>     ## Using PersistentVolumeClaim
+     ##
+<span style="color:#a40000">-    #  volumeClaimTemplate:
+</span><span style="color:#a40000">-    #    spec:
+</span><span style="color:#a40000">-    #      storageClassName: gluster
+</span><span style="color:#a40000">-    #      accessModes: [&#34;ReadWriteOnce&#34;]
+</span><span style="color:#a40000">-    #      resources:
+</span><span style="color:#a40000">-    #        requests:
+</span><span style="color:#a40000">-    #          storage: 50Gi
+</span><span style="color:#a40000"></span><span style="color:#00a000">+      volumeClaimTemplate:
+</span><span style="color:#00a000">+        spec:
+</span><span style="color:#00a000">+          storageClassName: longhorn
+</span><span style="color:#00a000">+          accessModes: [&#34;ReadWriteOnce&#34;]
+</span><span style="color:#00a000">+          resources:
+</span><span style="color:#00a000">+            requests:
+</span><span style="color:#00a000">+              storage: 50Gi
+</span><span style="color:#00a000"></span>     #    selector: {}
+
+     ## Using tmpfs volume
+</code></pre></div><p>and configure persistent storage and ingress for Grafana:</p>
+<div class="highlight"><pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-diff" data-lang="diff"> grafana:
+   enabled: true
+<span style="color:#00a000">+  ## Grafana&#39;s primary configuration
+</span><span style="color:#00a000">+  ## NOTE: values in map will be converted to ini format
+</span><span style="color:#00a000">+  ## ref: http://docs.grafana.org/installation/configuration/
+</span><span style="color:#00a000">+  grafana.ini:
+</span><span style="color:#00a000">+    paths:
+</span><span style="color:#00a000">+      data: /var/lib/grafana/data
+</span><span style="color:#00a000">+      logs: /var/log/grafana
+</span><span style="color:#00a000">+      plugins: /var/lib/grafana/plugins
+</span><span style="color:#00a000">+      provisioning: /etc/grafana/provisioning
+</span><span style="color:#00a000">+    analytics:
+</span><span style="color:#00a000">+      check_for_updates: true
+</span><span style="color:#00a000">+    log:
+</span><span style="color:#00a000">+      mode: console
+</span><span style="color:#00a000">+    grafana_net:
+</span><span style="color:#00a000">+      url: https://grafana.net
+</span><span style="color:#00a000">+    server:
+</span><span style="color:#00a000">+      domain: grafana.leokuan.info
+</span><span style="color:#00a000">+      root_url: &#34;https://grafana.leokuan.info&#34;
+</span><span style="color:#00a000">+
+</span><span style="color:#00a000"></span>   namespaceOverride: &#34;&#34;
+
+<span style="color:#00a000">+    ## Enable persistence using Persistent Volume Claims
+</span><span style="color:#00a000">+  ## ref: http://kubernetes.io/docs/user-guide/persistent-volumes/
+</span><span style="color:#00a000">+  ##
+</span><span style="color:#00a000">+  persistence:
+</span><span style="color:#00a000">+    type: pvc
+</span><span style="color:#00a000">+    enabled: true
+</span><span style="color:#00a000">+    storageClassName: longhorn
+</span><span style="color:#00a000">+    accessModes:
+</span><span style="color:#00a000">+      - ReadWriteOnce
+</span><span style="color:#00a000">+    size: 10Gi
+</span><span style="color:#00a000">+    # annotations: {}
+</span><span style="color:#00a000">+    finalizers:
+</span><span style="color:#00a000">+      - kubernetes.io/pvc-protection
+</span><span style="color:#00a000">+    # subPath: &#34;&#34;
+</span><span style="color:#00a000">+    # existingClaim:
+</span><span style="color:#00a000"></span><span style="color:#800080;font-weight:bold">@@ -668,25 +707,26 @@
+</span><span style="color:#800080;font-weight:bold"></span>   ingress:
+     ## If true, Grafana Ingress will be created
+<span style="color:#a40000">-    enabled: false
+</span><span style="color:#a40000"></span><span style="color:#00a000">+    enabled: true
+</span><span style="color:#00a000"></span>
+     ## Annotations for Grafana Ingress
+<span style="color:#a40000">-    annotations: {}
+</span><span style="color:#a40000"></span><span style="color:#00a000">+    annotations:
+</span><span style="color:#00a000">+      kubernetes.io/ingress.class: nginx
+</span><span style="color:#00a000"></span>       # kubernetes.io/tls-acme: &#34;true&#34;
+
+     ## Labels to be added to the Ingress    
+<span style="color:#a40000">-    labels: {}
+</span><span style="color:#a40000"></span><span style="color:#00a000">+    labels:
+</span><span style="color:#00a000">+      app: grafana
+</span><span style="color:#00a000"></span>
+     ## Hostnames.
+     ## Must be provided if Ingress is enable.
+     ##
+<span style="color:#a40000">-    # hosts:
+</span><span style="color:#a40000">-    #   - grafana.domain.com
+</span><span style="color:#a40000">-    hosts: []
+</span><span style="color:#a40000">-
+</span><span style="color:#a40000"></span><span style="color:#00a000">+    hosts:
+</span><span style="color:#00a000">+      - grafana.leokuan.info
+</span><span style="color:#00a000">+
+</span><span style="color:#00a000"></span>     ## Path for grafana ingress
+     path: /
+</code></pre></div><p>After configuring the values file, we can finally install the helm chart.</p>
+<p>let us first create a new namespace in our k8s cluster called <code>monitoring</code> for all our monitoring resources</p>
+<p><code>kubectl create namespace monitoring</code></p>
+<div class="highlight"><pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-bash" data-lang="bash">helm install --namespace<span style="color:#ce5c00;font-weight:bold">=</span>monitoring prometheus prometheus-community/kube-prometheus-stack --values prometheus-grafana-values.yaml
+</code></pre></div><div class="highlight"><pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-fallback" data-lang="fallback">devops@k8s-master:~/part-b/prometheus-grafana-values$ helm install --namespace=monitoring prometheus prometheus-community/kube-prometheus-stack --values prometheus-grafana-values.yaml
+NAME: prometheus
+LAST DEPLOYED: Fri Jun  3 02:20:46 2022
+NAMESPACE: monitoring
+STATUS: deployed
+REVISION: 1
+NOTES:
+kube-prometheus-stack has been installed. Check its status by running:
+kubectl --namespace monitoring get pods -l &#34;release=prometheus&#34;
+</code></pre></div><p>The following resources will be created</p>
+<div class="highlight"><pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-fallback" data-lang="fallback">devops@k8s-master:~/part-b/prometheus-grafana-values$ k -n monitoring get all
+NAME                                                         READY   STATUS    RESTARTS   AGE
+pod/alertmanager-prometheus-kube-prometheus-alertmanager-0   2/2     Running   0          52s
+pod/prometheus-grafana-6d6498b446-lcdr9                      3/3     Running   0          60s
+pod/prometheus-kube-prometheus-operator-7fc5d45d99-4c7g2     1/1     Running   0          60s
+pod/prometheus-kube-state-metrics-94f76f559-wjjdk            1/1     Running   0          60s
+pod/prometheus-prometheus-kube-prometheus-prometheus-0       2/2     Running   0          51s
+pod/prometheus-prometheus-node-exporter-48864                1/1     Running   0          60s
+pod/prometheus-prometheus-node-exporter-cklf9                1/1     Running   0          60s
+pod/prometheus-prometheus-node-exporter-p9r6r                1/1     Running   0          60s
+
+NAME                                              TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)                      AGE
+service/alertmanager-operated                     ClusterIP   None             &lt;none&gt;        9093/TCP,9094/TCP,9094/UDP   52s
+service/prometheus-grafana                        ClusterIP   10.99.67.46      &lt;none&gt;        80/TCP                       61s
+service/prometheus-kube-prometheus-alertmanager   ClusterIP   10.97.233.56     &lt;none&gt;        9093/TCP                     61s
+service/prometheus-kube-prometheus-operator       ClusterIP   10.96.243.205    &lt;none&gt;        443/TCP                      61s
+service/prometheus-kube-prometheus-prometheus     ClusterIP   10.110.118.134   &lt;none&gt;        9090/TCP                     61s
+service/prometheus-kube-state-metrics             ClusterIP   10.99.11.14      &lt;none&gt;        8080/TCP                     61s
+service/prometheus-operated                       ClusterIP   None             &lt;none&gt;        9090/TCP                     51s
+service/prometheus-prometheus-node-exporter       ClusterIP   10.99.26.63      &lt;none&gt;        9100/TCP                     61s
+
+NAME                                                 DESIRED   CURRENT   READY   UP-TO-DATE   AVAILABLE   NODE SELECTOR   AGE
+daemonset.apps/prometheus-prometheus-node-exporter   3         3         3       3            3           &lt;none&gt;          61s
+
+NAME                                                  READY   UP-TO-DATE   AVAILABLE   AGE
+deployment.apps/prometheus-grafana                    1/1     1            1           61s
+deployment.apps/prometheus-kube-prometheus-operator   1/1     1            1           61s
+deployment.apps/prometheus-kube-state-metrics         1/1     1            1           61s
+
+NAME                                                             DESIRED   CURRENT   READY   AGE
+replicaset.apps/prometheus-grafana-6d6498b446                    1         1         1       60s
+replicaset.apps/prometheus-kube-prometheus-operator-7fc5d45d99   1         1         1       60s
+replicaset.apps/prometheus-kube-state-metrics-94f76f559          1         1         1       60s
+
+NAME                                                                    READY   AGE
+statefulset.apps/alertmanager-prometheus-kube-prometheus-alertmanager   1/1     52s
+statefulset.apps/prometheus-prometheus-kube-prometheus-prometheus       1/1     51s
+</code></pre></div><p>For the purpose of this exercise we will edit the service objects <code>prometheus-grafana</code> and <code>prometheus-kube-prometheus-prometheus</code> to use LoadBalancer instead of ClusterIP and set up DNS as well.</p>
+<div class="highlight"><pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-fallback" data-lang="fallback">devops@k8s-master:~/part-b/prometheus-grafana-values$ k -n monitoring edit svc prometheus-grafana
+devops@k8s-master:~/part-b/prometheus-grafana-values$ k -n monitoring edit svc prometheus-kube-prometheus-prometheus
+
+selector:
+  app.kubernetes.io/instance: prometheus
+  app.kubernetes.io/name: grafana
+sessionAffinity: None
+type: LoadBalancer
+</code></pre></div><div class="highlight"><pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-fallback" data-lang="fallback">devops@k8s-master:~/part-b/prometheus-grafana-values$ k -n monitoring get svc
+NAME                                      TYPE           CLUSTER-IP       EXTERNAL-IP     PORT(S)                      AGE
+alertmanager-operated                     ClusterIP      None             &lt;none&gt;          9093/TCP,9094/TCP,9094/UDP   64m
+prometheus-grafana                        LoadBalancer   10.99.67.46      192.168.1.223   80:31733/TCP                 64m
+prometheus-kube-prometheus-alertmanager   ClusterIP      10.97.233.56     &lt;none&gt;          9093/TCP                     64m
+prometheus-kube-prometheus-operator       ClusterIP      10.96.243.205    &lt;none&gt;          443/TCP                      64m
+prometheus-kube-prometheus-prometheus     LoadBalancer   10.110.118.134   192.168.1.224   9090:30328/TCP               64m
+prometheus-kube-state-metrics             ClusterIP      10.99.11.14      &lt;none&gt;          8080/TCP                     64m
+prometheus-operated                       ClusterIP      None             &lt;none&gt;          9090/TCP                     64m
+prometheus-prometheus-node-exporter       ClusterIP      10.99.26.63      &lt;none&gt;          9100/TCP                     64m
+</code></pre></div><p>Optionally configure NodePort to expose your Prometheus and Grafana deployment to access their WebUI from your workstation&rsquo;s browser if you don&rsquo;t have a proper domain set up. Also note that if you don&rsquo;t have valid certificates configured, Kubernetes will reject any client connections on HTTPS and thus Prometheus will show these kube system targets as being down: <code>kube-controller-manager</code>,<code>kube-scheduler</code>,<code>kube-etcd</code>. More on this <a href="https://github.com/prometheus-operator/kube-prometheus/issues/718">here</a>.</p>
+<p><code>prometheus-grafana</code> and <code>prometheus-kube-prometheus-prometheus</code> are the service objects you may want to edit to configure that NodePort for the WebUI.</p>
+<p>Now go ahead and point your browser to the frontend of your Prometheus and Grafana instance and confirm both are working properly.
+The default admin user is <code>admin</code> and the password is <code>prom-operator</code>, which you can also retrieve by issuing the following commands:</p>
+<div class="highlight"><pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-bash" data-lang="bash">kubectl get secret --namespace monitoring prometheus-grafana -o <span style="color:#000">jsonpath</span><span style="color:#ce5c00;font-weight:bold">=</span><span style="color:#4e9a06">&#34;{.data.admin-user}&#34;</span> <span style="color:#000;font-weight:bold">|</span> base64 --decode <span style="color:#000;font-weight:bold">;</span> <span style="color:#204a87">echo</span>
+</code></pre></div><div class="highlight"><pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-bash" data-lang="bash">kubectl get secret --namespace monitoring prometheus-grafana -o <span style="color:#000">jsonpath</span><span style="color:#ce5c00;font-weight:bold">=</span><span style="color:#4e9a06">&#34;{.data.admin-password}&#34;</span> <span style="color:#000;font-weight:bold">|</span> base64 --decode <span style="color:#000;font-weight:bold">;</span> <span style="color:#204a87">echo</span>
+</code></pre></div><p><img src="/static/img/SRE-DevOps-Challenge-Part-B/SRE-DevOps-Challenge-Part-B_2022-06-02-17-34-08.png" alt="">
+<img src="/static/img/SRE-DevOps-Challenge-Part-B/SRE-DevOps-Challenge-Part-B_2022-06-02-17-33-53.png" alt=""></p>
+<h2 id="adding-a-prometheus-metrics-endpoint-to-webhook-app">Adding a Prometheus metrics endpoint to webhook-app</h2>
+
+
+<div class="alert alert-primary" role="alert">
+<h4 class="alert-heading">Requirement:</h4>
+
+    Add a Prometheus metrics endpoint to your REST API that exposes a count of received webhooks.
+
+</div>
+
+<p>For this we are going back to our nodejs webhook app. A quick search of npmjs returned two packages prom-client and express-prom-bundle which uses the former package under the hood. Prom-client looks well documented and simple enough to use for our simple case and seeing as I have no good reason to incur additional dependency I opted for <a href="https://github.com/siimon/prom-client#custom-metrics">prom-client</a>.
+To install <code>prom-client</code>:</p>
+<div class="highlight"><pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-bash" data-lang="bash">npm install prom-client
+</code></pre></div><p>Obviously the Counter type is what we will utilize to implement the webhook count metric, which only goes up and resets when the process restarts.  We add the two mandatory parameters <code>name</code> and <code>help</code> and the counter is incremented when a POST request is made to the &ldquo;/&rdquo; route. Note that there&rsquo;s no reset mechanism implemented for the counter, since there is no requirement for it. Let&rsquo;s add the following code to the <code>webhook-app.js</code> file:</p>
+<div class="highlight"><pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-js" data-lang="js"><span style="color:#8f5902;font-style:italic">/* ... */</span>
+<span style="color:#204a87;font-weight:bold">const</span> <span style="color:#000">http</span> <span style="color:#ce5c00;font-weight:bold">=</span> <span style="color:#000">require</span><span style="color:#000;font-weight:bold">(</span><span style="color:#4e9a06">&#39;http&#39;</span><span style="color:#000;font-weight:bold">)</span>
+<span style="color:#204a87;font-weight:bold">const</span> <span style="color:#000">server</span> <span style="color:#ce5c00;font-weight:bold">=</span> <span style="color:#000">http</span><span style="color:#000;font-weight:bold">.</span><span style="color:#000">createServer</span><span style="color:#000;font-weight:bold">(</span><span style="color:#000">app</span><span style="color:#000;font-weight:bold">)</span>
+<span style="color:#204a87;font-weight:bold">const</span> <span style="color:#000">client</span> <span style="color:#ce5c00;font-weight:bold">=</span> <span style="color:#000">require</span><span style="color:#000;font-weight:bold">(</span><span style="color:#4e9a06">&#39;prom-client&#39;</span><span style="color:#000;font-weight:bold">)</span>
+
+<span style="color:#204a87;font-weight:bold">let</span> <span style="color:#000">register</span> <span style="color:#ce5c00;font-weight:bold">=</span> <span style="color:#204a87;font-weight:bold">new</span> <span style="color:#000">client</span><span style="color:#000;font-weight:bold">.</span><span style="color:#000">Registry</span><span style="color:#000;font-weight:bold">()</span>
+<span style="color:#204a87;font-weight:bold">const</span> <span style="color:#000">webhookCount</span> <span style="color:#ce5c00;font-weight:bold">=</span> <span style="color:#204a87;font-weight:bold">new</span> <span style="color:#000">client</span><span style="color:#000;font-weight:bold">.</span><span style="color:#000">Counter</span><span style="color:#000;font-weight:bold">({</span>
+    <span style="color:#000">name</span><span style="color:#ce5c00;font-weight:bold">:</span> <span style="color:#4e9a06">&#34;webhook_count&#34;</span><span style="color:#000;font-weight:bold">,</span>
+    <span style="color:#000">help</span><span style="color:#ce5c00;font-weight:bold">:</span> <span style="color:#4e9a06">&#34;Number of webhooks received&#34;</span>
+<span style="color:#000;font-weight:bold">})</span>
+<span style="color:#8f5902;font-style:italic">/* ... */</span>
+
+<span style="color:#000">register</span><span style="color:#000;font-weight:bold">.</span><span style="color:#000">registerMetric</span><span style="color:#000;font-weight:bold">(</span><span style="color:#000">webhookCount</span><span style="color:#000;font-weight:bold">)</span>
+<span style="color:#000">register</span><span style="color:#000;font-weight:bold">.</span><span style="color:#000">setDefaultLabels</span><span style="color:#000;font-weight:bold">({</span>
+  <span style="color:#000">app</span><span style="color:#ce5c00;font-weight:bold">:</span> <span style="color:#4e9a06">&#39;webhook-app&#39;</span>
+<span style="color:#000;font-weight:bold">})</span>
+
+<span style="color:#8f5902;font-style:italic">/* ... */</span>
+<span style="color:#000">app</span><span style="color:#000;font-weight:bold">.</span><span style="color:#000">post</span><span style="color:#000;font-weight:bold">(</span><span style="color:#4e9a06">&#39;/&#39;</span><span style="color:#000;font-weight:bold">,</span> <span style="color:#000;font-weight:bold">(</span><span style="color:#000">req</span><span style="color:#000;font-weight:bold">,</span> <span style="color:#000">res</span><span style="color:#000;font-weight:bold">)</span> <span style="color:#000;font-weight:bold">=&gt;</span> <span style="color:#000;font-weight:bold">{</span>
+    <span style="color:#000">webhookCount</span><span style="color:#000;font-weight:bold">.</span><span style="color:#000">inc</span><span style="color:#000;font-weight:bold">(</span><span style="color:#0000cf;font-weight:bold">1</span><span style="color:#000;font-weight:bold">)</span>
+     <span style="color:#8f5902;font-style:italic">/* ... */</span>
+<span style="color:#000;font-weight:bold">})</span>
+</code></pre></div><p>Run it</p>
+<div class="highlight"><pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-bash" data-lang="bash">node webhook-app.js
+</code></pre></div><p>Let&rsquo;s test it out locally,</p>
+<div class="highlight"><pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-bash" data-lang="bash">curl -X POST http://localhost:3000
+</code></pre></div><div class="highlight"><pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-bash" data-lang="bash">curl http://localhost:3000/metrics
+<span style="color:#8f5902;font-style:italic"># HELP webhook_count Number of webhooks received</span>
+<span style="color:#8f5902;font-style:italic"># TYPE webhook_count counter</span>
+webhook_count<span style="color:#ce5c00;font-weight:bold">{</span><span style="color:#000">app</span><span style="color:#ce5c00;font-weight:bold">=</span><span style="color:#4e9a06">&#34;webhook-app&#34;</span><span style="color:#ce5c00;font-weight:bold">}</span> <span style="color:#0000cf;font-weight:bold">2</span>
+</code></pre></div><p>One easy way to test is poll our metric endpoint using the watch command and have it refresh every 0.1s, note that it&rsquo;s the minimum number.
+To generate webhook we can just send POST request to our API server and watch the number increase as</p>
+<div class="highlight"><pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-bash" data-lang="bash">xargs -I % -P <span style="color:#0000cf;font-weight:bold">20</span> curl -X POST http://webhook-app.leokuan.info/ &lt; &lt;<span style="color:#ce5c00;font-weight:bold">(</span><span style="color:#204a87">printf</span> <span style="color:#4e9a06">&#39;%s\n&#39;</span> <span style="color:#ce5c00;font-weight:bold">{</span>1..50000<span style="color:#ce5c00;font-weight:bold">})</span>
+</code></pre></div><p>Looks like prom-client works as advertised. Let&rsquo;s build and test the image locally and push it to dockerhub.</p>
+<div class="highlight"><pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-bash" data-lang="bash">docker build 
+docker run
+
+Listening at xxxxxxxx
+docker push xxxxx
+</code></pre></div><p>Note: if maybe you&rsquo;re wondering why I am not using the pipeline built in part A. There&rsquo;s no requirement for using that in Part B&rsquo;s instructions and I just felt like making the solution more stand-alone. It&rsquo;s as simple as committing the webhook-app.js changes to our gitlab instance.</p>
+<p>Moving on, there&rsquo;s no changes to our <code>deployment.yaml</code> and <code>service.yaml</code> on the Kubernetes side of things, since we pushed a new version of the app to Docker hub, let&rsquo;s rollout the new version. Note that I am using :latest image for the deployment, best practice is to always pin everything to a specific version unless you have a good reason, quick and dirty is my reason and that&rsquo;s good enough for MVS.</p>
+<div class="highlight"><pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-bash" data-lang="bash">kubectl -n gitlab rollout restart deployment webhook-app
+</code></pre></div><p>again, we can test the deployement again by curling the NodeIP:NodePort/metrics since we have the deployement exposed on nodeport.
+here&rsquo;s the command and here&rsquo;s the output</p>
+<h2 id="configuring-prometheus-to-scrape-using-servicemonitor-and-creating-a-provisioned-grafana-dashboard">Configuring Prometheus to scrape using ServiceMonitor and creating a provisioned Grafana dashboard</h2>
+
+
+<div class="alert alert-primary" role="alert">
+<h4 class="alert-heading">Requirement:</h4>
+
+    Configure Prometheus to scrape that endpoint using ServiceMonitor, and create a provisioned Grafana dashboard for the metric.
+
+</div>
+
+<p>The main thing about configuring ServiceMonitor is <a href="https://github.com/prometheus-operator/prometheus-operator/blob/main/Documentation/troubleshooting.md#troubleshooting-servicemonitor-changes">matching</a> the app name and labels in your mainfests
+<img src="/static/img/SRE-DevOps-Challenge-Part-B/SRE-DevOps-Challenge-Part-B_2022-06-02-22-16-03.png" alt=""></p>
+<p>So what we really need to configure Prometheus is the following files:</p>
+<p>ServiceMonitor
+Service</p>
+<p>That&rsquo;s it. and another you want to do is again expose nodeport so we can access it from our workstation outside the cluster.</p>
+<p>Next, we will create a provisioned Grafana dashboard, you can clicky click, but another way to do it is by <a href="https://raw.githubusercontent.com/leokuan2021/Devops-Challenge/main/part-b/webhook-app-dashboard.yaml">code</a>.</p>
+<p>After we created the dashboard using the UI and exported it to json which we will name webhook-app-dashboard.json, we can create the configmap for it.</p>
+<div class="highlight"><pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-fallback" data-lang="fallback">devops@k8s-master:~/part-b/webhook-app-dashboard$ k -n monitoring create configmap grafana-webhook-app --from-file=webhook-app-dashboard.json  --dry-run=client -o yaml &gt; webhook-app-dashboard-configmap.yaml
+</code></pre></div><p>We also need to add the grafana_dashboard label to it but kubectl doesn&rsquo;t support the &ndash;labels=&quot;&quot; flag for create <a href="https://github.com/kubernetes/kubernetes/issues/60295">configmap</a>, there&rsquo;s no clean way to generate the configmap yaml imperatively with a one-liner so we will have to add it in the yaml manually.</p>
+<div class="highlight"><pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-fallback" data-lang="fallback">labels:
+  grafana_dashboard: &#34;1&#34;
+</code></pre></div><p>Alternatively, we can use another kubectl command to label the configmap</p>
+<div class="highlight"><pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-bash" data-lang="bash">kubectl -n monitoring label cm grafana-webhook-app <span style="color:#000">grafana_dashboard</span><span style="color:#ce5c00;font-weight:bold">=</span><span style="color:#0000cf;font-weight:bold">1</span>
+</code></pre></div><p>then run</p>
+<div class="highlight"><pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-bash" data-lang="bash">kubectl apply -f webhook-app-dashboard-configmap.yaml
+</code></pre></div><p>and you will be able to find the webhook-app dashboard in the UI.</p>
+<h2 id="deploying-a-custom-metrics-adaptor-for-prometheus">Deploying a custom metrics adaptor for Prometheus</h2>
+<p>
+
+<div class="alert alert-primary" role="alert">
+<h4 class="alert-heading">Requirement:</h4>
+
+    Create another custom metric for your REST API that exposes a count of in-flight requests. Deploy a custom metrics adaptor for Prometheus, saving your k8s manifest(s) and/or chart     <code>values.yaml</code>.
+
+</div>
+
+let&rsquo;s go back to the source code for the webhook-app and add the code for the in-flight counter.
+here&rsquo;s the cdoe</p>
+<p>Here&rsquo;s how I test it. Since there&rsquo;s no requirement for what kind of traffic we need to generate, one simple way we can test the in-flight counter is by spamming HTTP requests using curl.</p>
+<div class="highlight"><pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-bash" data-lang="bash">xargs -I % -P <span style="color:#0000cf;font-weight:bold">20</span> curl -X POST http://webhook-app.leokuan.info/ &lt; &lt;<span style="color:#ce5c00;font-weight:bold">(</span><span style="color:#204a87">printf</span> <span style="color:#4e9a06">&#39;%s\n&#39;</span> <span style="color:#ce5c00;font-weight:bold">{</span>1..50000<span style="color:#ce5c00;font-weight:bold">})</span>
+</code></pre></div><p>You can increase the number of processes to further increase the queue length. This of course depends on your hardware and network spec so adjust as you need, we just need to push the server a little bit to make sure the code works as intended.
+Since we&rsquo;re not actually doing anything with each request besides incrementing a counter, it&rsquo;s very possible that no matter how many times requests you send the server can still keep up because we&rsquo;re working with a gigabit local network there&rsquo;s minimal latency. So what do we do? well we can simulate some using the tc command.</p>
+<p>Let&rsquo;s again deploy it following the same step above and try that once it&rsquo;s running on our cluster.</p>
+<h2 id="adding-an-hpa-manifest-to-webhook-app">Adding an HPA manifest to webhook-app</h2>
+<p>
+
+<div class="alert alert-primary" role="alert">
+<h4 class="alert-heading">Requirement:</h4>
+
+    Add an HPA manifest to your REST API that’s sensitive to the custom metric from step 1.
+
+</div>
+
+Finally, let&rsquo;s add an HPA and make kubernetes handle the scaling automatically for us.</p>
+<p>Let&rsquo;s try the traffic again and watch the deployment scale. After ramping up the traffic to trigger scaling in testing, there will be a cooldown period you have to wait a few minutes for it to scale down on its own. If you want to do it manually you have to manually edit the config map to patch to set the replicas to 1.</p>
+<p>For whatever reason when I generate traffic on my mac it gets connection refused when I ramp up traffic, and one interesting thing happens when it works. It doesn&rsquo;t direct traffic to the other newly brought up replicas, the queue length is still long for the origianl while it&rsquo;s at zero for the other replicas. Generating with another machine running Ubuntu did not cause any issue, weird right?</p>
+<p>This behavior raises two good points, one is our scaling strategy, we naively thought that taking the average was a good way, but that also exposes one problem, what if load balancing doesn&rsquo;t work?</p>
+<p>Originally I had thought this had something to do with the default kubernetes load balancing algorithm ,so I looked into and even tried vssd (no keepalive) to see what&rsquo;s wrong, but didn&rsquo;t find anything. It was good though because I learned about vssd, and you should look into it too if that&rsquo;s something that you might find useful.</p>
+
+	
+	
+	
+</div>
+
+
+          </main>
+        </div>
+      </div>
+      
+<footer class="bg-dark py-5 row d-print-none">
+  <div class="container-fluid mx-sm-5">
+    <div class="row">
+      <div class="col-6 col-sm-4 text-xs-center order-sm-2">
+        
+        
+        
+<ul class="list-inline mb-0">
+  
+  <li class="list-inline-item mx-2 h3" data-toggle="tooltip" data-placement="top" title="Email Leo" aria-label="Email Leo">
+    <a class="text-white" target="_blank" rel="noopener" href="mailto:me@leokuan.info" aria-label="Email Leo">
+      <i class="fa fa-envelope"></i>
+    </a>
+  </li>
+  
+  <li class="list-inline-item mx-2 h3" data-toggle="tooltip" data-placement="top" title="Leo&#39;s Resume" aria-label="Leo&#39;s Resume">
+    <a class="text-white" target="_blank" rel="noopener" href="/blog" aria-label="Leo&#39;s Resume">
+      <i class="fa fa-file-alt"></i>
+    </a>
+  </li>
+  
+  <li class="list-inline-item mx-2 h3" data-toggle="tooltip" data-placement="top" title="Leo&#39;s Linkedin" aria-label="Leo&#39;s Linkedin">
+    <a class="text-white" target="_blank" rel="noopener" href="https://linkedin.com/in/leokuan" aria-label="Leo&#39;s Linkedin">
+      <i class="fab fa-linkedin-in"></i>
+    </a>
+  </li>
+  
+  <li class="list-inline-item mx-2 h3" data-toggle="tooltip" data-placement="top" title="Leo&#39;s GitHub" aria-label="Leo&#39;s GitHub">
+    <a class="text-white" target="_blank" rel="noopener" href="https://github.com/leokuan2021" aria-label="Leo&#39;s GitHub">
+      <i class="fab fa-github"></i>
+    </a>
+  </li>
+  
+</ul>
+
+        
+        
+      </div>
+      <div class="col-6 col-sm-4 text-right text-xs-center order-sm-3">
+        
+        
+        
+      </div>
+      <div class="col-12 col-sm-4 text-center py-2 order-sm-2">
+        
+        
+	
+		
+	
+      </div>
+    </div>
+  </div>
+</footer>
+
+
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js" integrity="sha384-9/reFTGAW83EW2RDu2S0VKaIzap3H66lZH81PoYlFhbGU+6BZp6G7niu735Sk7lN" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.0/dist/js/bootstrap.min.js" integrity="sha384-+YQ4JLhjyBLPDQt//I+STsc9iw4uQqACwlvpslubQzn4u2UU2UFM80nGisd026JF" crossorigin="anonymous"></script>
+
+
+
+
+
+<script src='/js/tabpane-persist.js'></script>
+
+
+
+
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<script src="/js/main.min.3b172c13b62c2bea8b1c9d2599cddc8cf89718a92d792c680871c81ba43d8c85.js" integrity="sha256-OxcsE7YsK&#43;qLHJ0lmc3cjPiXGKkteSxoCHHIG6Q9jIU=" crossorigin="anonymous"></script>
+
+
+
+
+  </body>
+</html>

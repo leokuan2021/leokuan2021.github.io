@@ -1,0 +1,31 @@
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Leo Kuan – intro</title>
+    <link>/tags/intro/</link>
+    <description>Recent content in intro on Leo Kuan</description>
+    <generator>Hugo -- gohugo.io</generator>
+    
+	  <atom:link href="/tags/intro/index.xml" rel="self" type="application/rss+xml" />
+    
+    
+      
+        
+      
+    
+    
+    <item>
+      <title>: Mostly Technical Things That Don&#39;t Fit in The Resume</title>
+      <link>/</link>
+      <pubDate>Mon, 02 May 2022 15:40:58 -1000</pubDate>
+      
+      <guid>/</guid>
+      <description>
+        
+        
+        &lt;p&gt;I made this &lt;a href=&#34;https://gohugo.io/&#34;&gt;Hugo&lt;/a&gt; site with &lt;a href=&#34;https://github.com/google/docsy/&#34;&gt;Docsy theme&lt;/a&gt; to document some of the mini technical projects I worked on outside of work. I would love to be able to put everything and the kitchen sink in my resume and let prospective employers know that I am somewhat proficient when it comes to these technologies, but the general consensus seems to be that these details don&amp;rsquo;t really belong in a Technical Project Manager&amp;rsquo;s resume.&lt;/p&gt;
+
+      </description>
+    </item>
+    
+  </channel>
+</rss>

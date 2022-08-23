@@ -1,0 +1,44 @@
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Leo Kuan – Scrapy</title>
+    <link>/tags/scrapy/</link>
+    <description>Recent content in Scrapy on Leo Kuan</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <lastBuildDate>Fri, 18 Mar 2022 00:00:00 +0000</lastBuildDate>
+    
+	  <atom:link href="/tags/scrapy/index.xml" rel="self" type="application/rss+xml" />
+    
+    
+      
+        
+      
+    
+    
+    <item>
+      <title>Miscellaneous: Construction Bid Result Scraper</title>
+      <link>/miscellaneous/bid-result-scraper/</link>
+      <pubDate>Fri, 18 Mar 2022 00:00:00 +0000</pubDate>
+      
+      <guid>/miscellaneous/bid-result-scraper/</guid>
+      <description>
+        
+        
+        
+
+&lt;div class=&#34;alert alert-primary&#34; role=&#34;alert&#34;&gt;
+&lt;h4 class=&#34;alert-heading&#34;&gt;Code&lt;/h4&gt;
+
+    The repo for this project can be found &lt;a href=&#34;https://github.com/leokuan2021/Hawaii_Bid_Result_Scraper.git&#34;&gt;here&lt;/a&gt;.
+
+&lt;/div&gt;
+
+&lt;h1 id=&#34;hawaii-bid-result-scraper&#34;&gt;Hawaii Bid Result Scraper&lt;/h1&gt;
+&lt;p&gt;Bid results for many public works construction projects are publicly available and I had this idea to mine the bid result data from the past 10 years.&lt;/p&gt;
+&lt;p&gt;I wrote this scraper using Python with Scrapy for scraping public bid results to collect bid information such as bid amounts, listed subcontractors that can be used for analyzing business trends.&lt;/p&gt;
+&lt;p&gt;For example, the data collected can offer a rough approximation of how much work each of the major general contractors has at present so that estimators can have an idea how aggressive these companies are likely to be in terms of pursuing new work. Secondly, the data can also be analyzed to show how likely each of these general contractors is going to use certain subcontractors based on historic records.&lt;/p&gt;
+
+      </description>
+    </item>
+    
+  </channel>
+</rss>
