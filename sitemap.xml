@@ -29,8 +29,6 @@
     <loc>/devops/sre-devops-challenge-part-b/</loc>
     <lastmod>2022-03-06T14:19:02-10:00</lastmod>
   </url><url>
-    <loc>/blog/</loc>
-  </url><url>
     <loc>/iac/production-grade-iac/</loc>
     <lastmod>2022-03-30T21:29:50-10:00</lastmod>
   </url><url>
@@ -118,23 +116,13 @@
     <loc>/tags/rest-api/</loc>
     <lastmod>2022-03-06T14:19:02-10:00</lastmod>
   </url><url>
-    <loc>/tags/business-development/</loc>
-  </url><url>
     <loc>/tags/c/c&#43;&#43;/</loc>
   </url><url>
     <loc>/categories/</loc>
   </url><url>
     <loc>/tags/ci/cd/</loc>
   </url><url>
-    <loc>/tags/communication/</loc>
-  </url><url>
-    <loc>/tags/contract-negotiation/</loc>
-  </url><url>
     <loc>/tags/intro/</loc>
-  </url><url>
-    <loc>/tags/leadership/</loc>
-  </url><url>
-    <loc>/tags/project-management/</loc>
   </url><url>
     <loc>/search/</loc>
   </url>
